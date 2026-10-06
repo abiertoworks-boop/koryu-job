@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0907">
+<title>交流ジョブ診断 | 人脈を活かせるビジネス交流会</title>
+<meta name="description" content="10問の質問から、あなたの人脈を活かす力をゲーム感覚で発見。人脈を活かせるビジネス交流会の「交流ジョブ診断」。">
+<meta property="og:title" content="あなたの「交流ジョブ」は何？ | 人脈を活かせるビジネス交流会">
+<meta property="og:description" content="10問の質問から、あなたの人脈を活かす力をゲーム感覚で発見。">
+<meta property="og:image" content="images/tome.jpg">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Shippori+Mincho:wght@500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="job.css">
+</head>
+<body data-scene="title">
+<!--
+  交流ジョブ診断（RPG型）
+  ・内容（質問・ジョブ・二つ名・コピー・ミッション）は data.js
+  ・画面とロジックは app.js（タイトル → 質問10問 → 解析 → 結果）
+  ・背景：タイトル＝古い本 / 質問＝酒場（ギルド）/ 結果＝古い本、ステータス表＝羊皮紙
+-->
+<div class="bg" aria-hidden="true">
+  <div class="bg__img bg__img--tome"></div>
+  <div class="bg__img bg__img--tavern"></div>
+  <div class="bg__shade"></div>
+</div>
+
+<header class="bar">
+  <span class="bar__event">人脈を活かせるビジネス交流会</span>
+  <span class="bar__tag en">JOB QUEST</span>
+</header>
+
+<main id="app">
+
+  <!-- ============ TITLE ============ -->
+  <section class="screen screen--title is-active" id="screen-title" aria-labelledby="titleHeading">
+    <p class="crest en"><span>NETWORKING</span><span>JOB&nbsp;QUEST</span></p>
+    <p class="title__event">人脈を活かせるビジネス交流会</p>
+    <h1 class="title__h" id="titleHeading" tabindex="-1">あなたの<br>「交流ジョブ」は何？</h1>
+    <p class="title__sub">10問の質問から、あなたの人脈を活かす力を<br class="sp">ゲーム感覚で発見。</p>
+
+    <div class="title__intro">
+      <p>人との交流には、いろいろな「役割」があります。</p>
+      <ul class="party-roll" id="partyRoll"></ul>
+      <p>あなたが自然に使っている「交流の力」を、<br class="pc">RPGのジョブに見立てて診断します。</p>
+    </div>
+
+    <button class="btn btn--primary btn--start" id="startBtn" type="button">
+      <span class="btn__en en">START QUEST</span>
+      <span class="btn__ja">冒険をはじめる</span>
+    </button>
+    <p class="title__meta en">10 QUESTIONS &nbsp;·&nbsp; ABOUT 2–3 MIN</p>
+    <button class="link-btn" id="resumeBtn" type="button" hidden>前回の結果を見る</button>
+    <p class="note" data-slot="disclaimer"></p>
+  </section>
+
+  <!-- ============ QUIZ ============ -->
+  <section class="screen screen--quiz" id="screen-quiz" aria-label="質問">
+    <div class="hud">
+      <button class="hud__back" id="backBtn" type="button" aria-label="前の質問に戻る">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5 8 12l7 7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>戻る</span>
+      </button>
+      <p class="hud__count en" id="hudCount" aria-live="polite"></p>
+      <span class="hud__lv en" data-slot="lv"></span>
+    </div>
+    <div class="pips" id="pips" role="progressbar" aria-valuemin="0" aria-valuemax="10" aria-valuenow="0" aria-label="進捗"></div>
+
+    <div class="qbox" id="qbox">
+      <div class="qcard">
+        <p class="qcard__label en" id="qLabel"></p>
+        <h2 class="qcard__text" id="qText" tabindex="-1"></h2>
+      </div>
+      <ol class="choices" id="choices"></ol>
+    </div>
+    <p class="quiz__hint">直感で選んでください。正解はありません。</p>
+  </section>
+
+  <!-- ============ ANALYZE ============ -->
+  <section class="screen screen--analyze" id="screen-analyze" aria-live="polite" aria-label="解析中">
+    <div class="sigil" aria-hidden="true"><span></span><span></span></div>
+    <p class="analyze__head en">JOB ANALYZING<span class="dots">...</span></p>
+    <ol class="an-lines" id="anLines"></ol>
+  </section>
+
+  <!-- ============ RESULT ============ -->
+  <section class="screen screen--result" id="screen-result" aria-labelledby="resultHeading">
+    <div id="result"></div>
+  </section>
+
+</main>
+
+<!-- 結果カード（保存・シェア） -->
+<dialog class="share" id="shareDialog" aria-labelledby="shareHeading">
+  <div class="share__inner">
+    <p class="share__head" id="shareHeading">診断結果カード</p>
+    <div class="share__preview"><img id="shareImg" alt="交流ジョブ診断の結果カード"></div>
+    <p class="share__hint" id="shareHint">画像を長押し、または下のボタンから保存できます。</p>
+    <div class="share__actions">
+      <button class="btn btn--primary btn--sm" id="shareNative" type="button" hidden>シェアする</button>
+      <a class="btn btn--ghost btn--sm" id="shareSave" download="koryu-job.png">画像を保存</a>
+      <button class="btn btn--text btn--sm" id="shareClose" type="button">閉じる</button>
+    </div>
+  </div>
+</dialog>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
