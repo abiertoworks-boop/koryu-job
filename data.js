@@ -182,7 +182,7 @@ window.JOB_QUIZ = {
       { text: '「こういう方法もあるんじゃない？」と別案を考える', job: 'CREATOR' },
       { text: '紹介した後も、その後どうなったか気にする', job: 'BUILDER' }
     ]},
-    { id: 'q5', text: '交流で相手が自分の話を長く続けています。\nあなたの最初の反応は？', choices: [
+    { id: 'q5', text: '相手が自分の話を長く続けています。\nあなたの最初の反応は？', choices: [
       { text: '「この人と合いそうな人がいるかも」', job: 'CONNECTOR' },
       { text: '「もう少し話を聞いてみよう」', job: 'LISTENER' },
       { text: '「何か困っていることがあるのかな？」', job: 'SUPPORTER' },

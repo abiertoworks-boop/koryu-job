@@ -136,6 +136,7 @@ main{position:relative;z-index:1}
   text-shadow:0 0 40px rgba(207,174,107,.15);
 }
 .title__sub{font-size:clamp(14.5px,3.9vw,16.5px);color:var(--text);line-height:1.9}
+.title__tease{margin-top:14px;font-family:var(--font-head);font-weight:600;font-size:clamp(17px,4.8vw,21px);line-height:1.7;letter-spacing:.1em;color:var(--gold)}
 
 .title__intro{
   margin:36px auto 34px;padding:24px 20px 22px;max-width:480px;
