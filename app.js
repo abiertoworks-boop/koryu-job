@@ -21,6 +21,8 @@
   const lines = s => esc(s).replace(/\n/g, '<br>');
   const wait = ms => new Promise(r => setTimeout(r, ms));
 
+  // 「調和の風水士」→ ['調和の', '風水士']
+  const crown = name => { const k = name.indexOf('の'); return k < 0 ? ['', name] : [name.slice(0, k + 1), name.slice(k + 1)]; };
   const emblem = (job, cls = '') =>
     `<svg class="emblem ${cls}" viewBox="0 0 48 48" aria-hidden="true" style="--c:${job.color};--ink:${job.ink}"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${job.emblem}</g></svg>`;
 
@@ -215,7 +217,8 @@
 
         <div class="epithet">
           <p class="epithet__label">二つ名</p>
-          <h2 class="epithet__name">${esc(title.name)}</h2>
+          <h2 class="epithet__name" style="--len:${crown(title.name)[1].length}"><span class="epithet__crown">${esc(crown(title.name)[0])}</span><span class="epithet__core">${esc(crown(title.name)[1])}</span></h2>
+          ${title.kana ? `<p class="epithet__kana">（${esc(title.kana)}）</p>` : ''}
           <p class="epithet__copy">${esc(title.copy)}</p>
         </div>
 
@@ -243,6 +246,7 @@
       <section class="block" aria-labelledby="h-trait">
         <p class="block__en en">PROFILE</p>
         <h3 class="block__h" id="h-trait">あなたの特徴</h3>
+        <div class="trait"><p class="trait__k">${esc(title.name)}の特性</p><p class="trait__p">${esc(title.trait)}</p></div>
         <p class="block__p">${esc(main.desc)}</p>
         <p class="block__p block__p--sub">さらに SUB JOB の <b class="en" style="color:${sub.color}">${esc(sub.id)}</b> として、「${esc(sub.subPower)}」も使いやすいタイプです。</p>
       </section>
@@ -262,9 +266,8 @@
 
       <section class="block" aria-labelledby="h-play">
         <p class="block__en en">HOW TO PLAY</p>
-        <h3 class="block__h" id="h-play">交流会での活かし方</h3>
-        <p class="block__p">${esc(sub.open)}</p>
-        <p class="block__p">${esc(main.play)}</p>
+        <h3 class="block__h" id="h-play">交流会での役立ち方</h3>
+        <p class="block__p">${esc(title.play)}</p>
       </section>
 
       <section class="block quest" aria-labelledby="h-quest">
@@ -363,7 +366,7 @@
     const EN = 'Cinzel, serif';
     const { main, sub, title } = r;
 
-    const allText = [D.meta.event, title.name, title.copy, main.ja, sub.ja, main.cls, sub.cls, D.meta.level.name, D.meta.concept, '傾向値二つ名今回の回答における', ...r.ranked.map(x => x.job.ja)].join('');
+    const allText = [D.meta.event, title.name, title.kana, title.copy, main.ja, sub.ja, main.cls, sub.cls, D.meta.level.name, D.meta.concept, '傾向値二つ名今回の回答における', ...r.ranked.map(x => x.job.ja)].join('');
     await Promise.all([
       document.fonts.load(`700 80px ${MIN}`, allText), document.fonts.load(`500 30px ${MIN}`, allText),
       document.fonts.load(`500 28px ${SANS}`, allText), document.fonts.load(`700 40px ${EN}`, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.·%')
@@ -404,15 +407,18 @@
     ctx.fillText(`${D.meta.level.lv}  ${D.meta.level.name}`, W / 2, y);
 
     // 二つ名
-    y += 84; ctx.fillStyle = INK3; spaced(ctx, 10); ctx.font = `500 26px ${MIN}`;
+    y += 64; ctx.fillStyle = INK3; spaced(ctx, 10); ctx.font = `500 26px ${MIN}`;
     ctx.fillText('— 二つ名 —', W / 2, y);
-    y += 108; spaced(ctx, 6); ctx.fillStyle = INK; fitFont(ctx, title.name, 700, MIN, 92, pw - 220);
-    ctx.fillText(title.name, W / 2, y);
-    y += 70; spaced(ctx, 2); ctx.fillStyle = INK2; fitFont(ctx, title.copy, 500, MIN, 32, pw - 220);
+    const [crw, core] = crown(title.name);
+    y += 52; spaced(ctx, 6); ctx.fillStyle = INK2; ctx.font = `600 34px ${MIN}`; ctx.fillText(crw, W / 2, y);
+    y += 92; spaced(ctx, 4); ctx.fillStyle = INK; fitFont(ctx, core, 700, MIN, 84, pw - 200);
+    ctx.fillText(core, W / 2, y);
+    if (title.kana) { y += 44; spaced(ctx, 4); ctx.fillStyle = INK3; ctx.font = `500 26px ${MIN}`; ctx.fillText(`（${title.kana}）`, W / 2, y); }
+    y += title.kana ? 56 : 70; spaced(ctx, 2); ctx.fillStyle = INK2; fitFont(ctx, title.copy, 500, MIN, 32, pw - 220);
     ctx.fillText(title.copy, W / 2, y);
 
     // 区切り
-    y += 50; ctx.strokeStyle = 'rgba(60,44,28,.35)'; ctx.lineWidth = 2;
+    y += 40; ctx.strokeStyle = 'rgba(60,44,28,.35)'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(px + 150, y); ctx.lineTo(W - px - 150, y); ctx.stroke();
 
     // MAIN / SUB
@@ -429,12 +435,12 @@
     ctx.beginPath(); ctx.moveTo(W / 2, y + 20); ctx.lineTo(W / 2, y + 290); ctx.stroke();
 
     // STATUS
-    y += 380;
+    y += 360;
     spaced(ctx, 10); ctx.fillStyle = INK2; ctx.font = `600 26px ${EN}`; ctx.fillText('STATUS', W / 2, y);
     y += 36;
     const left = px + 130, right = W - px - 130;
     r.ranked.forEach((row, k) => {
-      const ry = y + 34 + k * 94;
+      const ry = y + 34 + k * 88;
       ctx.drawImage(ems[k], left, ry - 36, 56, 56);
       ctx.textAlign = 'left'; spaced(ctx, 2);
       ctx.fillStyle = row.job.ink; ctx.font = `700 30px ${EN}`; ctx.fillText(row.job.id, left + 72, ry);

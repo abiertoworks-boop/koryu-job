@@ -279,6 +279,9 @@ main{position:relative;z-index:1}
 }
 #result.is-in .epithet__name{animation:inkIn 1.1s var(--ease) .45s both}
 @keyframes inkIn{from{opacity:0;letter-spacing:.3em;filter:blur(6px)}to{opacity:1;letter-spacing:.06em;filter:none}}
+.epithet__crown{display:block;font-size:clamp(14px,4vw,17px);font-weight:600;letter-spacing:.24em;color:var(--parch-ink-2);margin-bottom:2px}
+.epithet__core{display:block;font-size:min(44px, calc(min(100vw - 120px, 500px) / (var(--len) * 1.1)));white-space:nowrap;line-height:1.35}
+.epithet__kana{margin:-2px 0 6px;font-family:var(--font-head);font-size:13px;letter-spacing:.14em;color:var(--parch-ink-3)}
 .epithet__copy{font-family:var(--font-head);font-size:14px;line-height:1.7;color:var(--parch-ink-2)}
 
 .plates{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid rgba(60,44,28,.25);border-bottom:1px solid rgba(60,44,28,.25)}
@@ -346,6 +349,9 @@ main{position:relative;z-index:1}
 .block__p--sub{font-size:14px;color:var(--text-3)}
 .block__p b.en{font-weight:700;letter-spacing:.06em}
 
+.trait{margin:4px 0 18px;padding:16px 18px;border-radius:12px;border:1px solid var(--gold-hair);background:linear-gradient(180deg,rgba(207,174,107,.1),rgba(207,174,107,.03)),var(--glass)}
+.trait__k{font-family:var(--font-head);font-weight:700;font-size:13px;letter-spacing:.1em;color:var(--gold);margin-bottom:4px}
+.trait__p{font-family:var(--font-head);font-weight:600;font-size:16px;line-height:1.85;color:var(--text)}
 .skill{
   display:grid;grid-template-columns:52px 1fr;gap:16px;align-items:center;
   padding:18px;border-radius:12px;border:1px solid var(--gold-hair);background:var(--glass);
