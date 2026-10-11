@@ -8,8 +8,10 @@
   const D = window.JOB_QUIZ;
   const JOBS = D.jobs;
   const JOB = Object.fromEntries(JOBS.map(j => [j.id, j]));
-  const Q = D.questions;
+  const GENDER = Object.fromEntries(D.genders.map(g => [g.id, g]));
+  let Q = D.questions[D.genders[0].id];   // 選んだ性別の質問に差し替わる
   const TOTAL = Q.length;
+  const charaSrc = (gender, no) => `images/chara/${GENDER[gender].dir}/${no}.jpg`;
   const LETTERS = 'ABCDEFGH';
   const STORE_KEY = 'koryu-job:last';
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -32,7 +34,13 @@
   };
 
   /* ---------- state ---------- */
-  const state = { i: 0, answers: Array(TOTAL).fill(null), order: [], locked: false, result: null };
+  const state = { gender: null, i: 0, answers: Array(TOTAL).fill(null), order: [], locked: false, result: null };
+
+  function setGender(id) {
+    state.gender = id;
+    Q = D.questions[id];
+    $('#pips').innerHTML = '';
+  }
 
   function shuffled(n) {
     const a = [...Array(n).keys()];
@@ -58,11 +66,13 @@
     const main = ranked[0].job, sub = ranked[1].job;
     const lensQ = Q.find(q => q.id === D.lens.question);
     const lensAns = answers[Q.indexOf(lensQ)];
-    return { ranked, main, sub, low: ranked[ranked.length - 1].job, title: D.titles[main.id][sub.id], lensQ, lensAns };
+    const t = D.titles[main.id][sub.id];
+    const title = { no: t.no, name: t.name, kana: t.kana, ...t[state.gender], img: charaSrc(state.gender, t.no) };
+    return { ranked, main, sub, low: ranked[ranked.length - 1].job, title, lensQ, lensAns };
   }
 
   /* ---------- screens ---------- */
-  const SCENE = { title: 'title', quiz: 'quiz', analyze: 'analyze', result: 'result' };
+  const SCENE = { title: 'title', gender: 'title', quiz: 'quiz', analyze: 'analyze', result: 'result' };
   function show(name, focusSel) {
     $$('.screen').forEach(s => s.classList.toggle('is-active', s.id === `screen-${name}`));
     document.body.dataset.scene = SCENE[name];
@@ -80,8 +90,14 @@
         <span class="party-roll__ja">${esc(j.intro)}</span>
         <span class="party-roll__en en">${esc(j.id)}</span>
       </li>`).join('');
+    $('#genderPick').innerHTML = D.genders.map(g => `
+      <li><button class="gcard" type="button" data-gender="${g.id}">
+        <span class="gcard__img"><img src="${charaSrc(g.id, g.preview)}" alt="" width="640" height="853" loading="lazy"></span>
+        <span class="gcard__en en">${esc(g.en)}</span>
+        <span class="gcard__ja">${esc(g.label)}</span>
+      </button></li>`).join('');
     const last = store.get();
-    $('#resumeBtn').hidden = !(last && Array.isArray(last.answers) && last.answers.length === TOTAL && last.answers.every(a => a != null));
+    $('#resumeBtn').hidden = !(last && GENDER[last.gender] && Array.isArray(last.answers) && last.answers.length === TOTAL && last.answers.every(a => a != null));
   }
 
   function start() {
@@ -146,7 +162,7 @@
 
   function back() {
     if (state.locked) return;
-    if (state.i === 0) { show('title', '#titleHeading'); return; }
+    if (state.i === 0) { show('gender', '#genderHeading'); return; }
     state.i--;
     renderQuestion('back');
     $('#qText').focus({ preventScroll: true });
@@ -156,7 +172,8 @@
   async function analyze() {
     const r = compute(state.answers);
     state.result = r;
-    store.set({ answers: state.answers, at: Date.now() });
+    store.set({ gender: state.gender, answers: state.answers, at: Date.now() });
+    new Image().src = r.title.img;   // 解析演出のあいだに読み込んでおく
 
     const steps = [
       '交流ジョブを解析中……',
@@ -219,6 +236,7 @@
           <p class="epithet__label">二つ名</p>
           <h2 class="epithet__name" style="--len:${crown(title.name)[1].length}"><span class="epithet__crown">${esc(crown(title.name)[0])}</span><span class="epithet__core">${esc(crown(title.name)[1])}</span></h2>
           ${title.kana ? `<p class="epithet__kana">（${esc(title.kana)}）</p>` : ''}
+          <figure class="chara"><img src="${esc(title.img)}" alt="${esc(title.name)}のキャラクター" width="640" height="853"></figure>
           <p class="epithet__copy">${esc(title.copy)}</p>
         </div>
 
@@ -371,9 +389,9 @@
       document.fonts.load(`700 80px ${MIN}`, allText), document.fonts.load(`500 30px ${MIN}`, allText),
       document.fonts.load(`500 28px ${SANS}`, allText), document.fonts.load(`700 40px ${EN}`, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.·%')
     ]).catch(() => {});
-    const [tome, parch, emM, emS, ...ems] = await Promise.all([
-      loadImg('tome', 'images/tome.jpg'), loadImg('parch', 'images/parchment.jpg'),
-      emblemImg(main, main.ink), emblemImg(sub, sub.ink), ...r.ranked.map(x => emblemImg(x.job, x.job.ink))
+    const [tome, parch, chara, ...ems] = await Promise.all([
+      loadImg('tome', 'images/tome.jpg'), loadImg('parch', 'images/parchment.jpg'), loadImg(title.img, title.img),
+      ...r.ranked.map(x => emblemImg(x.job, x.job.ink))
     ]);
 
     // 背景
@@ -400,69 +418,68 @@
     nine(ctx, parch, px, py, pw, ph, 150, 120);
 
     const INK = '#2b2117', INK2 = '#5d4c38', INK3 = '#87735a';
-    let y = py + 132;
-    spaced(ctx, 8); ctx.fillStyle = INK2; ctx.font = `600 24px ${EN}`;
-    ctx.fillText('YOUR STATUS  ·  NETWORK PLAYER', W / 2, y);
-    y += 46; spaced(ctx, 2); ctx.font = `500 26px ${MIN}`; ctx.fillStyle = INK3;
-    ctx.fillText(`${D.meta.level.lv}  ${D.meta.level.name}`, W / 2, y);
+    spaced(ctx, 8); ctx.fillStyle = INK2; ctx.font = `600 22px ${EN}`;
+    ctx.fillText('YOUR STATUS  ·  NETWORK PLAYER', W / 2, 330);
+    spaced(ctx, 2); ctx.font = `500 24px ${MIN}`; ctx.fillStyle = INK3;
+    ctx.fillText(`${D.meta.level.lv}  ${D.meta.level.name}`, W / 2, 370);
 
     // 二つ名
-    y += 64; ctx.fillStyle = INK3; spaced(ctx, 10); ctx.font = `500 26px ${MIN}`;
-    ctx.fillText('— 二つ名 —', W / 2, y);
     const [crw, core] = crown(title.name);
-    y += 52; spaced(ctx, 6); ctx.fillStyle = INK2; ctx.font = `600 34px ${MIN}`; ctx.fillText(crw, W / 2, y);
-    y += 92; spaced(ctx, 4); ctx.fillStyle = INK; fitFont(ctx, core, 700, MIN, 84, pw - 200);
-    ctx.fillText(core, W / 2, y);
-    if (title.kana) { y += 44; spaced(ctx, 4); ctx.fillStyle = INK3; ctx.font = `500 26px ${MIN}`; ctx.fillText(`（${title.kana}）`, W / 2, y); }
-    y += title.kana ? 56 : 70; spaced(ctx, 2); ctx.fillStyle = INK2; fitFont(ctx, title.copy, 500, MIN, 32, pw - 220);
-    ctx.fillText(title.copy, W / 2, y);
+    spaced(ctx, 6); ctx.fillStyle = INK2; ctx.font = `600 32px ${MIN}`; ctx.fillText(crw, W / 2, 432);
+    spaced(ctx, 4); ctx.fillStyle = INK; fitFont(ctx, core, 700, MIN, 76, pw - 200);
+    ctx.fillText(core, W / 2, 516);
+    if (title.kana) { spaced(ctx, 4); ctx.fillStyle = INK3; ctx.font = `500 24px ${MIN}`; ctx.fillText(`（${title.kana}）`, W / 2, 558); }
+
+    // キャラクター（白地を羊皮紙になじませる）
+    const ch = 440, cw = ch * chara.naturalWidth / chara.naturalHeight;
+    ctx.save(); ctx.globalCompositeOperation = 'multiply';
+    ctx.drawImage(chara, (W - cw) / 2, 578, cw, ch);
+    ctx.restore();
+
+    spaced(ctx, 2); ctx.fillStyle = INK2; fitFont(ctx, title.copy, 500, MIN, 32, pw - 220);
+    ctx.fillText(title.copy, W / 2, 1066);
 
     // 区切り
-    y += 40; ctx.strokeStyle = 'rgba(60,44,28,.35)'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(px + 150, y); ctx.lineTo(W - px - 150, y); ctx.stroke();
+    ctx.strokeStyle = 'rgba(60,44,28,.35)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(px + 150, 1100); ctx.lineTo(W - px - 150, 1100); ctx.stroke();
 
     // MAIN / SUB
-    y += 40;
     const colX = [W / 2 - 205, W / 2 + 205];
-    [[main, 'MAIN JOB', emM, main.power], [sub, 'SUB JOB', emS, sub.subPower]].forEach(([job, kind, em, pw2], k) => {
+    [[main, 'MAIN JOB'], [sub, 'SUB JOB']].forEach(([job, kind], k) => {
       const cx = colX[k];
-      spaced(ctx, 6); ctx.fillStyle = INK3; ctx.font = `600 22px ${EN}`; ctx.fillText(kind, cx, y + 10);
-      ctx.drawImage(em, cx - 60, y + 34, 120, 120);
-      spaced(ctx, 3); ctx.fillStyle = job.ink; ctx.font = `700 ${k ? 42 : 46}px ${EN}`; ctx.fillText(job.id, cx, y + 210);
-      spaced(ctx, 1); ctx.fillStyle = INK2; ctx.font = `500 27px ${MIN}`; ctx.fillText(`${job.ja} / ${job.cls}`, cx, y + 254);
-      fitFont(ctx, `「${pw2}」`, 500, MIN, 25, 380); ctx.fillStyle = INK3; ctx.fillText(`「${pw2}」`, cx, y + 296);
+      spaced(ctx, 6); ctx.fillStyle = INK3; ctx.font = `600 20px ${EN}`; ctx.fillText(kind, cx, 1144);
+      spaced(ctx, 3); ctx.fillStyle = job.ink; ctx.font = `700 ${k ? 40 : 44}px ${EN}`; ctx.fillText(job.id, cx, 1194);
+      spaced(ctx, 1); ctx.fillStyle = INK2; ctx.font = `500 25px ${MIN}`; ctx.fillText(`${job.ja} / ${job.cls}`, cx, 1232);
     });
-    ctx.beginPath(); ctx.moveTo(W / 2, y + 20); ctx.lineTo(W / 2, y + 290); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(W / 2, 1122); ctx.lineTo(W / 2, 1240); ctx.stroke();
 
-    // STATUS
-    y += 360;
-    spaced(ctx, 10); ctx.fillStyle = INK2; ctx.font = `600 26px ${EN}`; ctx.fillText('STATUS', W / 2, y);
-    y += 36;
+    // STATUS（1行ずつ）
+    spaced(ctx, 10); ctx.fillStyle = INK2; ctx.font = `600 24px ${EN}`; ctx.fillText('STATUS', W / 2, 1294);
     const left = px + 130, right = W - px - 130;
     r.ranked.forEach((row, k) => {
-      const ry = y + 34 + k * 88;
-      ctx.drawImage(ems[k], left, ry - 36, 56, 56);
+      const ry = 1350 + k * 62;
+      ctx.drawImage(ems[k], left, ry - 32, 40, 40);
       ctx.textAlign = 'left'; spaced(ctx, 2);
-      ctx.fillStyle = row.job.ink; ctx.font = `700 30px ${EN}`; ctx.fillText(row.job.id, left + 72, ry);
-      ctx.fillStyle = INK3; ctx.font = `500 21px ${SANS}`; spaced(ctx, 0);
-      ctx.fillText(`${row.job.ja}  傾向値 ${row.pct}%`, left + 72, ry + 30);
+      ctx.fillStyle = row.job.ink; ctx.font = `700 26px ${EN}`; ctx.fillText(row.job.id, left + 54, ry);
+      const nw = ctx.measureText(row.job.id).width;
+      spaced(ctx, 0); ctx.fillStyle = INK3; ctx.font = `500 19px ${SANS}`; ctx.fillText(`${row.pct}%`, left + 64 + nw, ry);
       // 星
       const sx = left + 400, sw = 26;
-      ctx.font = `28px ${SANS}`;
+      ctx.font = `26px ${SANS}`;
       for (let s = 0; s < 10; s++) {
         const fill = Math.max(0, Math.min(1, row.stat / 10 - s));
-        ctx.fillStyle = 'rgba(60,44,28,.18)'; ctx.fillText('★', sx + s * sw, ry + 6);
+        ctx.fillStyle = 'rgba(60,44,28,.18)'; ctx.fillText('★', sx + s * sw, ry + 2);
         if (fill > 0) {
-          ctx.save(); ctx.beginPath(); ctx.rect(sx + s * sw, ry - 30, sw * fill, 44); ctx.clip();
-          ctx.fillStyle = row.job.ink; ctx.fillText('★', sx + s * sw, ry + 6); ctx.restore();
+          ctx.save(); ctx.beginPath(); ctx.rect(sx + s * sw, ry - 30, sw * fill, 40); ctx.clip();
+          ctx.fillStyle = row.job.ink; ctx.fillText('★', sx + s * sw, ry + 2); ctx.restore();
         }
       }
-      ctx.textAlign = 'right'; ctx.fillStyle = INK; ctx.font = `700 36px ${EN}`; ctx.fillText(String(row.stat), right, ry + 8);
+      ctx.textAlign = 'right'; ctx.fillStyle = INK; ctx.font = `700 32px ${EN}`; ctx.fillText(String(row.stat), right, ry + 4);
       ctx.textAlign = 'center';
     });
 
-    ctx.fillStyle = INK3; ctx.font = `500 20px ${SANS}`; spaced(ctx, 1);
-    ctx.fillText('※数値は今回の回答における傾向値です', W / 2, py + ph - 100);
+    ctx.fillStyle = INK3; ctx.font = `500 19px ${SANS}`; spaced(ctx, 1);
+    ctx.fillText('※数値は今回の回答における傾向値です', W / 2, 1668);
 
     // フッター
     spaced(ctx, 6); ctx.fillStyle = '#efe6d4'; ctx.font = `600 40px ${MIN}`;
@@ -505,9 +522,16 @@
 
   /* ---------- events ---------- */
   function bind() {
-    $('#startBtn').addEventListener('click', start);
+    $('#startBtn').addEventListener('click', () => show('gender', '#genderHeading'));
+    $('#genderPick').addEventListener('click', e => {
+      const b = e.target.closest('[data-gender]'); if (!b) return;
+      setGender(b.dataset.gender);
+      start();
+    });
+    $('#genderBack').addEventListener('click', () => show('title', '#titleHeading'));
     $('#resumeBtn').addEventListener('click', () => {
-      const last = store.get(); if (!last) return;
+      const last = store.get(); if (!last || !GENDER[last.gender]) return;
+      setGender(last.gender);
       state.answers = last.answers; state.order = Q.map(q => shuffled(q.choices.length)); state.i = TOTAL - 1;
       state.result = compute(state.answers);
       renderResult(state.result);
@@ -520,7 +544,7 @@
     $('#result').addEventListener('click', e => {
       const act = e.target.closest('[data-act]')?.dataset.act;
       if (act === 'share') openShare();
-      if (act === 'retry') { $('#result').classList.remove('is-in'); start(); }
+      if (act === 'retry') { $('#result').classList.remove('is-in'); show('gender', '#genderHeading'); }
     });
     $('#shareClose').addEventListener('click', closeShare);
     $('#shareNative').addEventListener('click', nativeShare);
