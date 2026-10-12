@@ -298,8 +298,8 @@ main{position:relative;z-index:1}
 .epithet__core{display:block;font-size:min(44px, calc(min(100vw - 120px, 500px) / (var(--len) * 1.1)));white-space:nowrap;line-height:1.35}
 .epithet__kana{margin:-2px 0 6px;font-family:var(--font-head);font-size:13px;letter-spacing:.14em;color:var(--parch-ink-3)}
 .epithet__copy{font-family:var(--font-head);font-size:14px;line-height:1.7;color:var(--parch-ink-2)}
-.chara{margin:6px auto 8px;width:min(78%,300px);mix-blend-mode:multiply}
-.chara img{display:block;width:100%;height:auto}
+.chara{margin:10px auto 12px;width:min(82%,300px)}
+.chara img{display:block;width:100%;height:auto;border-radius:8px;border:1px solid rgba(60,44,28,.35);box-shadow:0 10px 24px -12px rgba(43,33,23,.55)}
 #result.is-in .chara{animation:charaIn 1s var(--ease) .6s both}
 @keyframes charaIn{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}
 
