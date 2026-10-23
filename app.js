@@ -1,6 +1,7 @@
 /* =========================================================
    交流ジョブ診断 — 画面とロジック
    内容はすべて data.js（window.JOB_QUIZ）から読みます。
+   流れ：タイトル → 性別 → 前半8問（採点）→ 後半5問（採点しない）→ お名前・送信 → 解析 → 結果
    ========================================================= */
 (() => {
   'use strict';
@@ -9,11 +10,13 @@
   const JOBS = D.jobs;
   const JOB = Object.fromEntries(JOBS.map(j => [j.id, j]));
   const GENDER = Object.fromEntries(D.genders.map(g => [g.id, g]));
-  let Q = D.questions[D.genders[0].id];   // 選んだ性別の質問に差し替わる
-  const TOTAL = Q.length;
+  const SQ = D.questions;          // 前半：交流スタイル（採点する）
+  const PQ = D.profileQuestions;   // 後半：仕事・人脈（採点しない）
+  const STEPS = [...SQ.map(q => ({ part: 'style', q })), ...PQ.map(q => ({ part: 'profile', q }))];
+  const TOTAL = STEPS.length;
   const charaSrc = (gender, no) => `images/chara/${GENDER[gender].dir}/${no}.jpg`;
-  const LETTERS = 'ABCDEFGH';
-  const STORE_KEY = 'koryu-job:last';
+  const LETTERS = 'ABCDEFGHIJKLMNOP';
+  const STORE_KEY = 'koryu-job:v2';
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const $ = (s, r = document) => r.querySelector(s);
@@ -22,6 +25,7 @@
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const lines = s => esc(s).replace(/\n/g, '<br>');
   const wait = ms => new Promise(r => setTimeout(r, ms));
+  const uuid = () => (crypto.randomUUID ? crypto.randomUUID() : 'r-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
 
   // 「調和の風水士」→ ['調和の', '風水士']
   const crown = name => { const k = name.indexOf('の'); return k < 0 ? ['', name] : [name.slice(0, k + 1), name.slice(k + 1)]; };
@@ -34,13 +38,16 @@
   };
 
   /* ---------- state ---------- */
-  const state = { gender: null, i: 0, answers: Array(TOTAL).fill(null), order: [], locked: false, result: null };
+  const emptyProfile = () => Object.fromEntries(PQ.map(q => [q.id, { choices: [], fields: {} }]));
+  const state = {
+    gender: null, i: 0, locked: false,
+    style: Array(SQ.length).fill(null),   // 前半：選んだ選択肢の番号（data.js の並び）
+    profile: emptyProfile(),               // 後半：{ choices: [選択肢ID], fields: { 入力欄ID: 文字 } }
+    order: [], name: '',
+    responseId: null, record: null, save: 'idle', sending: false, result: null
+  };
 
-  function setGender(id) {
-    state.gender = id;
-    Q = D.questions[id];
-    $('#pips').innerHTML = '';
-  }
+  function setGender(id) { state.gender = id; }
 
   function shuffled(n) {
     const a = [...Array(n).keys()];
@@ -49,30 +56,90 @@
     return a;
   }
 
-  /* ---------- scoring ---------- */
-  function compute(answers) {
-    const counts = Object.fromEntries(JOBS.map(j => [j.id, 0]));
-    answers.forEach((ci, qi) => { if (ci != null) counts[Q[qi].choices[ci].job]++; });
-    const total = answers.filter(a => a != null).length || 1;
+  /* ---------- scoring（前半8問だけ） ----------
+     同点のときの決め方はここだけで定義し、保存データにも記録します。
+       1) 点数が高い順
+       2) 同点なら、そのタイプを最初に選んだ質問が早い順（一度も選ばれていなければ後ろ）
+       3) それでも同点なら data.js の jobs の並び順                                     */
+  const TIE_BREAK_RULE = 'score_desc > earliest_answered_question > jobs_order';
 
-    const pickOf = qid => { const qi = Q.findIndex(q => q.id === qid); const ci = answers[qi]; return ci == null ? null : Q[qi].choices[ci].job; };
-    const tb = (D.scoring.tieBreak || []).map(pickOf);
-    const tbRank = id => { const k = tb.indexOf(id); return k < 0 ? tb.length : k; };
+  function compute(types, gender) {
+    const counts = Object.fromEntries(JOBS.map(j => [j.id, 0]));
+    const firstAt = Object.fromEntries(JOBS.map(j => [j.id, Infinity]));
+    types.forEach((t, qi) => { if (t && t in counts) { counts[t]++; if (firstAt[t] === Infinity) firstAt[t] = qi; } });
+    const total = types.filter(Boolean).length || 1;
 
     const ranked = JOBS.map((job, order) => ({ job, order, count: counts[job.id] }))
-      .sort((a, b) => b.count - a.count || tbRank(a.job.id) - tbRank(b.job.id) || a.order - b.order)
+      .sort((a, b) => b.count - a.count || firstAt[a.job.id] - firstAt[b.job.id] || a.order - b.order)
       .map(r => ({ ...r, pct: Math.round(r.count / total * 100), stat: D.scoring.stat(r.count, total) }));
 
     const main = ranked[0].job, sub = ranked[1].job;
-    const lensQ = Q.find(q => q.id === D.lens.question);
-    const lensAns = answers[Q.indexOf(lensQ)];
+    const tieApplied = ranked[0].count === ranked[1].count || ranked[1].count === ranked[2].count;
     const t = D.titles[main.id][sub.id];
-    const title = { no: t.no, name: t.name, kana: t.kana, ...t[state.gender], img: charaSrc(state.gender, t.no) };
-    return { ranked, main, sub, low: ranked[ranked.length - 1].job, title, lensQ, lensAns };
+    const title = { no: t.no, name: t.name, kana: t.kana, ...t[gender], img: charaSrc(gender, t.no) };
+    return { ranked, counts, main, sub, tieApplied, low: ranked[ranked.length - 1].job, title };
+  }
+
+  const styleTypes = () => state.style.map((ci, k) => (ci == null ? null : SQ[k].choices[ci].job));
+
+  /* ---------- 保存する1件分のデータ ----------
+     交流スタイル（style）と、仕事・人脈の情報（profile）は分けて持ちます。
+     将来のマッチングは、この record を読む別のロジックとして追加できます。          */
+  function buildRecord(r) {
+    const profile = {};
+    PQ.forEach(q => {
+      const a = state.profile[q.id];
+      const pick = a.choices.map(id => q.choices.find(c => c.id === id)).filter(Boolean);
+      const entry = q.type === 'multi'
+        ? { choiceIds: pick.map(c => c.id), labels: pick.map(c => c.text) }
+        : { choiceId: pick[0] ? pick[0].id : null, label: pick[0] ? pick[0].text : null };
+      (q.fields || []).forEach(f => {
+        const visible = !f.showIf || a.choices.includes(f.showIf);
+        entry[f.id] = visible ? (a.fields[f.id] || '').trim().slice(0, f.max || 400) : '';
+      });
+      profile[q.id] = entry;
+    });
+    return {
+      schemaVersion: D.submit.schemaVersion,
+      responseId: state.responseId,
+      submittedAt: new Date().toISOString(),
+      name: state.name,
+      gender: state.gender,
+      style: {
+        answers: SQ.map((q, k) => {
+          const c = q.choices[state.style[k]];
+          return { questionId: q.id, choiceId: c.job, label: c.text };
+        }),
+        scores: r.counts,
+        mainType: r.main.id,
+        subType: r.sub.id,
+        title: r.title.name,
+        tieBreakRule: TIE_BREAK_RULE,
+        tieApplied: r.tieApplied
+      },
+      profile
+    };
+  }
+
+  /* ---------- 送信（Google Apps Script のウェブアプリ） ---------- */
+  async function sendRecord(record) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 45000);
+    try {
+      const res = await fetch(D.submit.endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },   // プリフライトを起こさない形
+        body: JSON.stringify(record),
+        signal: ctrl.signal
+      });
+      const body = await res.json().catch(() => null);
+      return !!(res.ok && body && body.ok);
+    } catch { return false; }
+    finally { clearTimeout(timer); }
   }
 
   /* ---------- screens ---------- */
-  const SCENE = { title: 'title', gender: 'title', quiz: 'quiz', analyze: 'analyze', result: 'result' };
+  const SCENE = { title: 'title', gender: 'title', quiz: 'quiz', submit: 'quiz', analyze: 'analyze', result: 'result' };
   function show(name, focusSel) {
     $$('.screen').forEach(s => s.classList.toggle('is-active', s.id === `screen-${name}`));
     document.body.dataset.scene = SCENE[name];
@@ -84,6 +151,7 @@
   function renderTitle() {
     $$('[data-slot="disclaimer"]').forEach(el => { el.textContent = D.meta.disclaimer; });
     $$('[data-slot="lv"]').forEach(el => { el.textContent = D.meta.level.lv; });
+    $$('[data-slot="total"]').forEach(el => { el.textContent = TOTAL; });
     $('#partyRoll').innerHTML = JOBS.map(j => `
       <li style="--c:${j.color}">
         ${emblem(j)}
@@ -96,41 +164,86 @@
         <span class="gcard__en en">${esc(g.en)}</span>
         <span class="gcard__ja">${esc(g.label)}</span>
       </button></li>`).join('');
+    $('#nameInput').maxLength = D.submit.nameMax;
+    $('#submitNotice').textContent = D.submit.notice;
     const last = store.get();
-    $('#resumeBtn').hidden = !(last && GENDER[last.gender] && Array.isArray(last.answers) && last.answers.length === TOTAL && last.answers.every(a => a != null));
+    $('#resumeBtn').hidden = !(last && last.record && GENDER[last.record.gender]);
   }
 
   function start() {
     state.i = 0;
-    state.answers = Array(TOTAL).fill(null);
-    state.order = Q.map(q => shuffled(q.choices.length));
+    state.style = Array(SQ.length).fill(null);
+    state.profile = emptyProfile();
+    state.order = SQ.map(q => shuffled(q.choices.length));
+    state.responseId = null; state.record = null; state.save = 'idle';
+    $('#pips').innerHTML = '';
     renderQuestion('fwd');
     show('quiz', '#qText');
   }
 
   /* ---------- quiz ---------- */
+  const isAnswered = k => {
+    const s = STEPS[k];
+    if (s.part === 'style') return state.style[k] != null;
+    return state.profile[s.q.id].choices.length > 0;
+  };
+
   function renderPips() {
     const pips = $('#pips');
-    if (!pips.children.length) pips.innerHTML = Q.map(() => '<span class="pip"></span>').join('');
+    if (!pips.children.length) {
+      pips.style.setProperty('--n', TOTAL);
+      pips.innerHTML = STEPS.map(s => `<span class="pip${s.part === 'profile' ? ' pip--profile' : ''}"></span>`).join('');
+    }
     [...pips.children].forEach((p, k) => {
-      p.classList.toggle('is-done', state.answers[k] != null && k !== state.i);
+      p.classList.toggle('is-done', isAnswered(k) && k !== state.i);
       p.classList.toggle('is-current', k === state.i);
     });
-    pips.setAttribute('aria-valuenow', String(state.answers.filter(a => a != null).length));
+    pips.setAttribute('aria-valuemax', String(TOTAL));
+    pips.setAttribute('aria-valuenow', String(STEPS.filter((_, k) => isAnswered(k)).length));
   }
 
   function renderQuestion(dir) {
-    const q = Q[state.i];
+    const step = STEPS[state.i], q = step.q;
+    const profile = step.part === 'profile';
     $('#hudCount').innerHTML = `QUESTION <b>${pad(state.i + 1)}</b> <span>/ ${pad(TOTAL)}</span>`;
-    $('#qLabel').textContent = `QUESTION ${pad(state.i + 1)}`;
+    $('#qLabel').innerHTML = `QUESTION ${pad(state.i + 1)}${profile ? '<span class="qcard__part">仕事・人脈について</span>' : ''}`;
     $('#qText').innerHTML = lines(q.text);
-    $('#choices').innerHTML = state.order[state.i].map((ci, pos) => {
-      const on = state.answers[state.i] === ci;
-      return `<li><button class="choice${on ? ' is-selected' : ''}" type="button" data-ci="${ci}" aria-pressed="${on}">
-        <span class="choice__mark en">${LETTERS[pos]}</span>
-        <span class="choice__text">${esc(q.choices[ci].text)}</span>
-      </button></li>`;
-    }).join('');
+    $('#qHint').innerHTML = profile
+      ? `${q.hint ? esc(q.hint) + '<br>' : (q.type === 'single' ? '1つ選んでください<br>' : '')}<small>この質問は診断の点数には入りません</small>`
+      : '';
+    $('#qHint').hidden = !profile;
+
+    if (profile) {
+      const a = state.profile[q.id];
+      $('#choices').innerHTML = q.choices.map((c, pos) => {
+        const on = a.choices.includes(c.id);
+        return `<li><button class="choice choice--${q.type}${on ? ' is-selected' : ''}" type="button" data-cid="${esc(c.id)}" aria-pressed="${on}">
+          <span class="choice__mark en">${q.type === 'multi' ? '' : LETTERS[pos]}</span>
+          <span class="choice__text">${esc(c.text)}</span>
+        </button></li>`;
+      }).join('');
+      $('#pfields').innerHTML = (q.fields || []).map(f => {
+        const v = esc(a.fields[f.id] || '');
+        const input = f.type === 'textarea'
+          ? `<textarea id="pf-${f.id}" data-fid="${f.id}" maxlength="${f.max || 400}" rows="3" placeholder="${esc(f.placeholder || '')}">${v}</textarea>`
+          : `<input id="pf-${f.id}" data-fid="${f.id}" type="text" maxlength="${f.max || 100}" value="${v}" placeholder="${esc(f.placeholder || '')}">`;
+        return `<div class="pfield" data-show-if="${esc(f.showIf || '')}"><label for="pf-${f.id}">${esc(f.label)}<span>任意</span></label>${input}</div>`;
+      }).join('');
+      syncProfileUI();
+    } else {
+      $('#choices').innerHTML = state.order[state.i].map((ci, pos) => {
+        const on = state.style[state.i] === ci;
+        return `<li><button class="choice${on ? ' is-selected' : ''}" type="button" data-ci="${ci}" aria-pressed="${on}">
+          <span class="choice__mark en">${LETTERS[pos]}</span>
+          <span class="choice__text">${esc(q.choices[ci].text)}</span>
+        </button></li>`;
+      }).join('');
+      $('#pfields').innerHTML = '';
+    }
+    $('#pfields').hidden = !profile;
+    $('#qNext').hidden = !profile;
+    $('#qErr').textContent = '';
+    $('.quiz__hint').hidden = profile;
     renderPips();
 
     const box = $('#qbox');
@@ -139,10 +252,45 @@
     box.classList.add(dir === 'back' ? 'enter-back' : 'enter-fwd');
   }
 
+  // 後半：選択状態・「その他」入力欄の表示・次へボタンを揃える
+  function syncProfileUI() {
+    const q = STEPS[state.i].q, a = state.profile[q.id];
+    $$('#choices .choice').forEach(b => {
+      const on = a.choices.includes(b.dataset.cid);
+      b.classList.toggle('is-selected', on);
+      b.setAttribute('aria-pressed', String(on));
+    });
+    $$('#pfields .pfield').forEach(el => { el.hidden = !!el.dataset.showIf && !a.choices.includes(el.dataset.showIf); });
+    $('#nextBtn').textContent = state.i === TOTAL - 1 ? '次へ（最後にお名前）' : '次へ';
+    $('#nextBtn').setAttribute('aria-disabled', String(!a.choices.length));
+    if (a.choices.length) $('#qErr').textContent = '';
+    renderPips();
+  }
+
+  function toggleProfile(cid) {
+    const q = STEPS[state.i].q, a = state.profile[q.id];
+    const c = q.choices.find(x => x.id === cid); if (!c) return;
+    if (q.type === 'single') a.choices = [cid];
+    else if (a.choices.includes(cid)) a.choices = a.choices.filter(x => x !== cid);
+    else if (c.exclusive) a.choices = [cid];   // 「特になし」は単独で
+    else a.choices = [...a.choices.filter(x => !(q.choices.find(y => y.id === x) || {}).exclusive), cid];
+    syncProfileUI();
+  }
+
+  function next() {
+    const q = STEPS[state.i].q;
+    if (!state.profile[q.id].choices.length) {
+      $('#qErr').textContent = q.type === 'multi' ? '1つ以上選んでください。' : '1つ選んでください。';
+      return;
+    }
+    if (state.i < TOTAL - 1) { state.i++; renderQuestion('fwd'); $('#qText').focus({ preventScroll: true }); }
+    else openSubmit();
+  }
+
   async function choose(ci) {
     if (state.locked) return;
     state.locked = true;
-    state.answers[state.i] = ci;
+    state.style[state.i] = ci;
     $$('#choices .choice').forEach(b => {
       const on = Number(b.dataset.ci) === ci;
       b.classList.toggle('is-selected', on);
@@ -150,13 +298,9 @@
     });
     renderPips();
     await wait(reduce ? 120 : 380);
-    if (state.i < TOTAL - 1) {
-      state.i++;
-      renderQuestion('fwd');
-      $('#qText').focus({ preventScroll: true });
-    } else {
-      await analyze();
-    }
+    state.i++;
+    renderQuestion('fwd');
+    $('#qText').focus({ preventScroll: true });
     state.locked = false;
   }
 
@@ -168,11 +312,65 @@
     $('#qText').focus({ preventScroll: true });
   }
 
+  /* ---------- お名前と送信 ---------- */
+  function openSubmit() {
+    $('#nameInput').value = state.name;
+    setSubmitStatus(state.save === 'failed' ? 'failed' : 'idle');
+    show('submit', '#submitHeading');
+  }
+
+  function setSubmitStatus(s, msg) {
+    const el = $('#submitStatus');
+    el.dataset.state = s;
+    el.textContent = msg || {
+      idle: '',
+      sending: '送信しています……（数秒かかることがあります）',
+      failed: '回答を送信できませんでした。通信環境をご確認のうえ、もう一度お試しください。入力した内容は残っています。'
+    }[s] || '';
+    $('#submitBtn').disabled = s === 'sending';
+    $('#submitBtn .btn__ja').textContent = s === 'sending' ? '送信中……' : s === 'failed' ? 'もう一度送信する' : '送信して結果を見る';
+    $('#skipSendBtn').hidden = s !== 'failed';
+  }
+
+  async function submit() {
+    if (state.sending) return;   // 二重送信を防ぐ
+    const name = $('#nameInput').value.trim();
+    state.name = name;
+    if (!name) { setSubmitStatus('idle', 'お名前を入力してください。'); $('#nameInput').focus(); return; }
+
+    const r = compute(styleTypes(), state.gender);
+    if (!state.responseId) state.responseId = uuid();   // 再送しても同じIDで1件として扱う
+    state.record = buildRecord(r);
+
+    if (!D.submit.endpoint) { state.save = 'unconfigured'; return analyze(r); }
+
+    state.sending = true;
+    setSubmitStatus('sending');
+    const ok = await sendRecord(state.record);
+    state.sending = false;
+    state.save = ok ? 'saved' : 'failed';
+    if (ok) { setSubmitStatus('idle'); return analyze(r); }
+    setSubmitStatus('failed');
+    persist();
+  }
+
+  async function resend() {
+    if (state.sending || !state.record || !D.submit.endpoint) return;
+    state.sending = true;
+    renderSaveNote('sending');
+    const ok = await sendRecord(state.record);
+    state.sending = false;
+    state.save = ok ? 'saved' : 'failed';
+    renderSaveNote(state.save);
+    persist();
+  }
+
+  function persist() { store.set({ record: state.record, save: state.save }); }
+
   /* ---------- analyze（1〜2秒） ---------- */
-  async function analyze() {
-    const r = compute(state.answers);
+  async function analyze(r) {
     state.result = r;
-    store.set({ gender: state.gender, answers: state.answers, at: Date.now() });
+    persist();
     new Image().src = r.title.img;   // 解析演出のあいだに読み込んでおく
 
     const steps = [
@@ -189,6 +387,19 @@
 
     renderResult(r);
     show('result', '#resultHeading');
+  }
+
+  // 結果画面の上に出す、保存の状態
+  function renderSaveNote(s) {
+    const el = $('#saveNote'); if (!el) return;
+    el.dataset.state = s;
+    el.innerHTML = {
+      saved: '回答を運営事務局へ送信しました。',
+      sending: '回答を送信しています……',
+      failed: '回答を送信できませんでした。<button class="btn btn--ghost btn--sm" type="button" data-act="resend">もう一度送信する</button>',
+      unconfigured: '回答の送信先が設定されていないため、この回答は保存されていません。'
+    }[s] || '';
+    el.hidden = !el.innerHTML;
   }
 
   /* ---------- result ---------- */
@@ -217,7 +428,6 @@
 
   function renderResult(r) {
     const { main, sub, title, low } = r;
-    const lensPick = r.lensAns != null ? r.lensQ.choices[r.lensAns] : null;
     const pq = D.partyQuest;
 
     $('#result').innerHTML = `
@@ -225,6 +435,7 @@
         <p class="unlock__en en">QUEST CLEAR</p>
         <p class="unlock__ja" id="resultHeading" tabindex="-1">交流ジョブが解放されました！</p>
       </header>
+      <p class="save-note" id="saveNote" role="status" hidden></p>
 
       <article class="sheet reveal" style="--d:120ms" aria-label="ステータス">
         <div class="sheet__top">
@@ -314,22 +525,6 @@
         </ul>
       </section>
 
-      <section class="block lens" aria-labelledby="h-lens">
-        <p class="block__en en">SAME FACT. DIFFERENT INTERPRETATION.</p>
-        <h3 class="block__h" id="h-lens">同じ出来事でも、<br class="sp">人によって受け取り方は違う。</h3>
-        <div class="lens__fact"><span class="lens__k">事実</span><p>${esc(D.lens.fact)}</p></div>
-        <ul class="lens__list">
-          ${r.lensQ.choices.map((c, ci) => `
-            <li class="${ci === r.lensAns ? 'is-you' : ''}" style="--c:${JOB[c.job].color}">
-              <span class="lens__who en">${esc(c.job)}</span><span class="lens__say">${esc(c.text)}</span>${ci === r.lensAns ? '<span class="lens__you">あなた</span>' : ''}
-            </li>`).join('')}
-          <li class="lens__extra"><span class="lens__who">ほかにも</span><span class="lens__say">${esc(D.lens.extra)}</span></li>
-        </ul>
-        ${lensPick ? `<p class="lens__mine">あなたは${esc(lensPick.text)}と受け取りました。でも、それは数ある解釈のひとつです。</p>` : ''}
-        <ol class="flow" aria-label="${D.lens.steps.join('、')}">${D.lens.steps.map(s => `<li>${esc(s)}</li>`).join('')}</ol>
-        ${D.lens.body.map(p => `<p class="block__p">${esc(p)}</p>`).join('')}
-      </section>
-
       <section class="cta">
         <p class="cta__concept">${esc(D.meta.concept)}</p>
         <p class="cta__lead">${esc(D.cta.lead)}</p>
@@ -343,6 +538,7 @@
         <p class="note">${esc(D.meta.disclaimer)}</p>
       </section>`;
 
+    renderSaveNote(state.save);
     if (!reduce) requestAnimationFrame(() => $('#result').classList.add('is-in'));
     else $('#result').classList.add('is-in');
   }
@@ -530,29 +726,43 @@
     });
     $('#genderBack').addEventListener('click', () => show('title', '#titleHeading'));
     $('#resumeBtn').addEventListener('click', () => {
-      const last = store.get(); if (!last || !GENDER[last.gender]) return;
-      setGender(last.gender);
-      state.answers = last.answers; state.order = Q.map(q => shuffled(q.choices.length)); state.i = TOTAL - 1;
-      state.result = compute(state.answers);
+      const last = store.get(); if (!last || !last.record || !GENDER[last.record.gender]) return;
+      const rec = last.record;
+      setGender(rec.gender);
+      const byId = Object.fromEntries((rec.style.answers || []).map(a => [a.questionId, a.choiceId]));
+      state.record = rec; state.responseId = rec.responseId; state.name = rec.name; state.save = last.save || 'idle';
+      state.result = compute(SQ.map(q => byId[q.id] || null), rec.gender);
       renderResult(state.result);
       show('result', '#resultHeading');
     });
     $('#choices').addEventListener('click', e => {
-      const b = e.target.closest('.choice'); if (b) choose(Number(b.dataset.ci));
+      const b = e.target.closest('.choice'); if (!b) return;
+      if (b.dataset.cid != null) toggleProfile(b.dataset.cid);
+      else choose(Number(b.dataset.ci));
     });
+    $('#pfields').addEventListener('input', e => {
+      const f = e.target.closest('[data-fid]'); if (!f) return;
+      state.profile[STEPS[state.i].q.id].fields[f.dataset.fid] = f.value;
+    });
+    $('#nextBtn').addEventListener('click', next);
     $('#backBtn').addEventListener('click', back);
+    $('#submitBack').addEventListener('click', () => { if (state.sending) return; state.name = $('#nameInput').value; state.i = TOTAL - 1; renderQuestion('back'); show('quiz', '#qText'); });
+    $('#submitForm').addEventListener('submit', e => { e.preventDefault(); submit(); });
+    $('#skipSendBtn').addEventListener('click', () => { if (!state.sending && state.record) analyze(compute(styleTypes(), state.gender)); });
     $('#result').addEventListener('click', e => {
       const act = e.target.closest('[data-act]')?.dataset.act;
       if (act === 'share') openShare();
-      if (act === 'retry') { $('#result').classList.remove('is-in'); show('gender', '#genderHeading'); }
+      if (act === 'resend') resend();
+      if (act === 'retry') { $('#result').classList.remove('is-in'); state.name = ''; show('gender', '#genderHeading'); }
     });
     $('#shareClose').addEventListener('click', closeShare);
     $('#shareNative').addEventListener('click', nativeShare);
     $('#shareDialog').addEventListener('click', e => { if (e.target.id === 'shareDialog') closeShare(); });
 
-    // キーボード：A〜E / 1〜5 で選択、← で戻る
+    // キーボード：前半の質問だけ A〜E / 1〜5 で選択、← で戻る（入力欄に打っているときは何もしない）
     document.addEventListener('keydown', e => {
-      if (document.body.dataset.scene !== 'quiz' || e.altKey || e.ctrlKey || e.metaKey) return;
+      if (!$('#screen-quiz').classList.contains('is-active') || e.altKey || e.ctrlKey || e.metaKey) return;
+      if (e.target.closest('input, textarea') || STEPS[state.i].part !== 'style') return;
       const k = e.key.toUpperCase();
       let pos = LETTERS.indexOf(k);
       if (pos < 0 && /^[1-9]$/.test(k)) pos = Number(k) - 1;

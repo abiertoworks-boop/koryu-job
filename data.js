@@ -22,7 +22,7 @@ window.JOB_QUIZ = {
   },
 
   /* ---------- 男女の選択 ----------
-     選んだ方で「質問」と「結果（二つ名の文章・キャラクター画像）」が切り替わります。
+     選んだ方で「結果（二つ名の文章・キャラクター画像）」が切り替わります（質問は男女共通）。
      dir     : キャラクター画像のフォルダ（images/chara/<dir>/<no>.jpg）
      preview : 選択画面に出すキャラクターの番号                              */
   genders: [
@@ -34,8 +34,6 @@ window.JOB_QUIZ = {
   shuffleChoices: true,
 
   scoring: {
-    // 同点のとき、ここに並べた質問で選んだジョブを優先（左ほど優先）。それでも同点ならジョブの並び順
-    tieBreak: ['q9', 'q1', 'q10'],
     // STATUSの数値（50〜100）。count = そのジョブを選んだ数、total = 回答数
     stat: (count, total) => Math.round(50 + 50 * Math.sqrt(count / total))
   },
@@ -316,172 +314,158 @@ window.JOB_QUIZ = {
     hint: 'たとえば、今回いちばん傾向値が低かった {low} タイプの人。あなたにない視点を持っているかもしれません。'
   },
 
-  /* ---------- 質問（男女それぞれ10問） ----------
-     設計の考え方（画面には出しません）
-     いわゆる「男性脳・女性脳」として語られるコミュニケーションの傾向を、質問の場面設定に使っています。
-       male   : 目的・成果・課題解決・役割や仕組み・一つのことに集中して深める
-       female : 共感・気持ちの共有・関係性や場の調和・会話のプロセス・周りへの気配り
-     ただし脳の働きが男女で明確に分かれるという科学的な根拠はなく、個人差のほうがずっと大きいものです。
-     そのため、どちらの質問でも5つのジョブすべてを同じように選べるようにしてあり、結果の出やすさは男女で変わりません。
-     q6 は SAME FACT（事実と解釈）で使うので、男女とも同じ質問・同じ選択肢にしています。     */
-  questions: {
-    male: [
-      { id: 'q1', text: '交流会に参加するとき、あなたが立てる「今日の目的」に一番近いのは？', choices: [
-        { text: '紹介できる相手を増やし、人脈の地図を広げる', job: 'CONNECTOR' },
-        { text: 'キーパーソンの考えや、業界の本音を聞き出す', job: 'LISTENER' },
-        { text: '誰かの課題を、1つでも解決して帰る', job: 'SUPPORTER' },
-        { text: '新しい事業のヒントや、コラボの種を見つける', job: 'CREATOR' },
-        { text: '長く付き合える相手を、1人でも確保する', job: 'BUILDER' }
-      ]},
-      { id: 'q2', text: '名刺交換をした相手が、自分の事業について説明を始めました。\nあなたの頭の中で最初に動くのは？', choices: [
-        { text: '「この事業なら、あの人と組めそうだ」', job: 'CONNECTOR' },
-        { text: '「この人が本当に解決したい課題は何だろう」', job: 'LISTENER' },
-        { text: '「自分の経験で、すぐ役に立てることはあるか」', job: 'SUPPORTER' },
-        { text: '「自分の仕事と掛け合わせたら、何ができるか」', job: 'CREATOR' },
-        { text: '「この人と長く取引できる関係になれるか」', job: 'BUILDER' }
-      ]},
-      { id: 'q3', text: '「この人に興味あるな」と感じるのは？', choices: [
-        { text: '業界を問わず、顔の広い人', job: 'CONNECTOR' },
-        { text: '話すと、自分の考えが整理される人', job: 'LISTENER' },
-        { text: '困ったとき、迷わず力を貸してくれる人', job: 'SUPPORTER' },
-        { text: '誰も思いつかない発想を持っている人', job: 'CREATOR' },
-        { text: '言ったことを、必ずやり遂げる人', job: 'BUILDER' }
-      ]},
-      { id: 'q4', text: '「○○に詳しい人を知りませんか？」と相談されたら？', choices: [
-        { text: 'すぐに頭の中の人脈を検索する', job: 'CONNECTOR' },
-        { text: '何のために探しているのか、目的から確認する', job: 'LISTENER' },
-        { text: '自分で解決できる部分がないか考える', job: 'SUPPORTER' },
-        { text: '「人を探す以外の解決策もある」と別ルートを考える', job: 'CREATOR' },
-        { text: '紹介したあと、うまく進んだかまで確認する', job: 'BUILDER' }
-      ]},
-      { id: 'q5', text: '相手が自分の話を長く続けています。\nあなたの最初の反応は？', choices: [
-        { text: '「この人と話が合いそうな人がいるな」', job: 'CONNECTOR' },
-        { text: '「要点は何か、最後まで聞いてみよう」', job: 'LISTENER' },
-        { text: '「何か困っていることがあるのかもしれない」', job: 'SUPPORTER' },
-        { text: '「この話から、新しい展開が作れそうだ」', job: 'CREATOR' },
-        { text: '「この人とは今後どう関わっていくべきか」', job: 'BUILDER' }
-      ]},
-      { id: 'q6', lens: true, text: '相手がスマートフォンを見ました。\nあなたはどう受け取りやすい？', choices: [
-        { text: '「何か急ぎの連絡があるのかな？」', job: 'CONNECTOR' },
-        { text: '「もしかして話を変えたほうがいいかな？」', job: 'LISTENER' },
-        { text: '「疲れているのかな？」', job: 'SUPPORTER' },
-        { text: '「ここから別の話題にしたら面白そう」', job: 'CREATOR' },
-        { text: '「また今度ゆっくり話せばいいかな」', job: 'BUILDER' }
-      ]},
-      { id: 'q7', text: '打ち合わせで、話が行き詰まりました。\nあなたが取る行動は？', choices: [
-        { text: '「この分野に詳しい人を呼びましょう」と提案する', job: 'CONNECTOR' },
-        { text: '相手が何に引っかかっているのか、質問して確かめる', job: 'LISTENER' },
-        { text: '相手の負担を減らす代案を出す', job: 'SUPPORTER' },
-        { text: '前提を変えて、まったく別の切り口を出す', job: 'CREATOR' },
-        { text: '一度持ち帰り、次回までに準備を整える', job: 'BUILDER' }
-      ]},
-      { id: 'q8', text: '交流会で「自分とは考え方が全然違う人」に出会ったら？', choices: [
-        { text: '「この人を知っておくと、人脈の幅が広がる」', job: 'CONNECTOR' },
-        { text: '「なぜその結論になるのか、筋道を聞きたい」', job: 'LISTENER' },
-        { text: '「その立場なら、何が必要なんだろう」', job: 'SUPPORTER' },
-        { text: '「違う者同士で組めば、強いチームになる」', job: 'CREATOR' },
-        { text: '「違うからこそ、長く組める相手かもしれない」', job: 'BUILDER' }
-      ]},
-      { id: 'q9', text: 'あなたにとって「良い人脈」とは？', choices: [
-        { text: '必要なとき、必要な人にすぐ届く人脈', job: 'CONNECTOR' },
-        { text: '互いの考えを、深く理解し合える人脈', job: 'LISTENER' },
-        { text: '困ったときに、助け合える人脈', job: 'SUPPORTER' },
-        { text: '一緒に新しい事業を生み出せる人脈', job: 'CREATOR' },
-        { text: '時間をかけて信頼を積み上げた人脈', job: 'BUILDER' }
-      ]},
-      { id: 'q10', text: '交流会が終わったあと、あなたが一番感じることは？', choices: [
-        { text: '「今日会った人同士をつなげたい」と感じる', job: 'CONNECTOR' },
-        { text: '「あの人の話を、もう少し深く聞きたかった」と感じる', job: 'LISTENER' },
-        { text: '「今日会った人の課題を解決したい」と感じる', job: 'SUPPORTER' },
-        { text: '「あの人と組めば、何か生み出せる」と感じる', job: 'CREATOR' },
-        { text: '「この縁を、次の具体的な約束につなげたい」と感じる', job: 'BUILDER' }
-      ]}
-    ],
+  /* ---------- 前半：交流スタイル診断（8問・採点する） ----------
+     id は保存データの列名にもなる固定値です。文言や並び順を変えても id は変えないでください。
+     選んだ選択肢の job（タイプID）に1点。保存する選択肢IDもこのタイプIDです。
+     男女共通の質問です（性別は結果のキャラクターと文章にだけ使います）。               */
+  questions: [
+    { id: 'style_goal', text: '交流会に参加するとき、あなたが立てる「今日の目的」に一番近いのは？', choices: [
+      { text: '紹介できる相手を増やし、人脈の地図を広げる', job: 'CONNECTOR' },
+      { text: 'キーパーソンの考えや、業界の本音を聞き出す', job: 'LISTENER' },
+      { text: '誰かの課題を、1つでも解決して帰る', job: 'SUPPORTER' },
+      { text: '新しい事業のヒントや、コラボの種を見つける', job: 'CREATOR' },
+      { text: '長く付き合える相手を、1人でも確保する', job: 'BUILDER' }
+    ]},
+    { id: 'style_pitch', text: '名刺交換をした相手が、自分の事業について説明を始めました。\nあなたの頭の中で最初に動くのは？', choices: [
+      { text: '「この事業なら、あの人と組めそうだ」', job: 'CONNECTOR' },
+      { text: '「この人が本当に解決したい課題は何だろう」', job: 'LISTENER' },
+      { text: '「自分の経験で、すぐ役に立てることはあるか」', job: 'SUPPORTER' },
+      { text: '「自分の仕事と掛け合わせたら、何ができるか」', job: 'CREATOR' },
+      { text: '「この人と長く取引できる関係になれるか」', job: 'BUILDER' }
+    ]},
+    { id: 'style_referral', text: '「○○に詳しい人を知りませんか？」と相談されたら？', choices: [
+      { text: 'すぐに頭の中の人脈を検索する', job: 'CONNECTOR' },
+      { text: '何のために探しているのか、目的から確認する', job: 'LISTENER' },
+      { text: '自分で解決できる部分がないか考える', job: 'SUPPORTER' },
+      { text: '「人を探す以外の解決策もある」と別ルートを考える', job: 'CREATOR' },
+      { text: '紹介したあと、うまく進んだかまで確認する', job: 'BUILDER' }
+    ]},
+    { id: 'style_long_talk', text: '相手が自分の話を長く続けています。\nあなたの最初の反応は？', choices: [
+      { text: '「この人と話が合いそうな人がいるな」', job: 'CONNECTOR' },
+      { text: '「要点は何か、最後まで聞いてみよう」', job: 'LISTENER' },
+      { text: '「何か困っていることがあるのかもしれない」', job: 'SUPPORTER' },
+      { text: '「この話から、新しい展開が作れそうだ」', job: 'CREATOR' },
+      { text: '「この人とは今後どう関わっていくべきか」', job: 'BUILDER' }
+    ]},
+    { id: 'style_stuck', text: '打ち合わせで、話が行き詰まりました。\nあなたが取る行動は？', choices: [
+      { text: '「この分野に詳しい人を呼びましょう」と提案する', job: 'CONNECTOR' },
+      { text: '相手が何に引っかかっているのか、質問して確かめる', job: 'LISTENER' },
+      { text: '相手の負担を減らす代案を出す', job: 'SUPPORTER' },
+      { text: '前提を変えて、まったく別の切り口を出す', job: 'CREATOR' },
+      { text: '一度持ち帰り、次回までに準備を整える', job: 'BUILDER' }
+    ]},
+    { id: 'style_different', text: '交流会で「自分とは考え方が全然違う人」に出会ったら？', choices: [
+      { text: '「この人を知っておくと、人脈の幅が広がる」', job: 'CONNECTOR' },
+      { text: '「なぜその結論になるのか、筋道を聞きたい」', job: 'LISTENER' },
+      { text: '「その立場なら、何が必要なんだろう」', job: 'SUPPORTER' },
+      { text: '「違う者同士で組めば、強いチームになる」', job: 'CREATOR' },
+      { text: '「違うからこそ、長く組める相手かもしれない」', job: 'BUILDER' }
+    ]},
+    { id: 'style_good_network', text: 'あなたにとって「良い人脈」とは？', choices: [
+      { text: '必要なとき、必要な人にすぐ届く人脈', job: 'CONNECTOR' },
+      { text: '互いの考えを、深く理解し合える人脈', job: 'LISTENER' },
+      { text: '困ったときに、助け合える人脈', job: 'SUPPORTER' },
+      { text: '一緒に新しい事業を生み出せる人脈', job: 'CREATOR' },
+      { text: '時間をかけて信頼を積み上げた人脈', job: 'BUILDER' }
+    ]},
+    { id: 'style_after_event', text: '交流会が終わったあと、あなたが一番感じることは？', choices: [
+      { text: '「今日会った人同士をつなげたい」と感じる', job: 'CONNECTOR' },
+      { text: '「あの人の話を、もう少し深く聞きたかった」と感じる', job: 'LISTENER' },
+      { text: '「今日会った人の課題を解決したい」と感じる', job: 'SUPPORTER' },
+      { text: '「あの人と組めば、何か生み出せる」と感じる', job: 'CREATOR' },
+      { text: '「この縁を、次の具体的な約束につなげたい」と感じる', job: 'BUILDER' }
+    ]}
+  ],
 
-    female: [
-      { id: 'q1', text: '初対面の人と話すとき、あなたが一番大切にしていることは？', choices: [
-        { text: '「この人と気が合いそうな人はいるかな」と周りを見る', job: 'CONNECTOR' },
-        { text: 'まずは相手の話に、じっくり耳を傾ける', job: 'LISTENER' },
-        { text: '相手が緊張していないか、居心地を気にかける', job: 'SUPPORTER' },
-        { text: '会話の中に「面白そう！」が生まれるのを楽しむ', job: 'CREATOR' },
-        { text: '「また会いたい」と思ってもらえる関係を意識する', job: 'BUILDER' }
-      ]},
-      { id: 'q2', text: '交流会で、相手が自分の仕事への想いを語り始めたら？', choices: [
-        { text: '「この想いに共感してくれそうな人」を思い浮かべる', job: 'CONNECTOR' },
-        { text: '相づちを打ちながら、想いの背景を聞いていく', job: 'LISTENER' },
-        { text: '「何か応援できることはないかな」と考える', job: 'SUPPORTER' },
-        { text: '「一緒にこんなことができそう」と想像が広がる', job: 'CREATOR' },
-        { text: '「この人とは、これからも続く関係になりたい」と思う', job: 'BUILDER' }
-      ]},
-      { id: 'q3', text: '「この人に興味あるな」と感じるのは？', choices: [
-        { text: 'いろいろな人と、自然に仲良くなれる人', job: 'CONNECTOR' },
-        { text: '話していると、気持ちまで整理される人', job: 'LISTENER' },
-        { text: 'さりげない気配りができる人', job: 'SUPPORTER' },
-        { text: '一緒にいるとワクワクする発想を持っている人', job: 'CREATOR' },
-        { text: '何年たっても、変わらず付き合える人', job: 'BUILDER' }
-      ]},
-      { id: 'q4', text: '知り合いから「○○な人、知らない？」と相談されたら？', choices: [
-        { text: 'すぐに「あの人がいいかも！」と顔が浮かぶ', job: 'CONNECTOR' },
-        { text: '「どうしてその人を探しているの？」と気持ちから聞く', job: 'LISTENER' },
-        { text: '「私にできることがあれば」と、まず自分が動く', job: 'SUPPORTER' },
-        { text: '「こういうやり方もあるかも」と別のアイデアを出す', job: 'CREATOR' },
-        { text: '紹介したあとも、二人がうまくいっているか気になる', job: 'BUILDER' }
-      ]},
-      { id: 'q5', text: '相手が自分の話を長く続けています。\nあなたの最初の反応は？', choices: [
-        { text: '「この話、あの人にも聞かせたいな」', job: 'CONNECTOR' },
-        { text: '「この人は今、話したい気持ちなんだな」', job: 'LISTENER' },
-        { text: '「何か抱えていることがあるのかな」', job: 'SUPPORTER' },
-        { text: '「この話、もっと膨らませたら面白そう」', job: 'CREATOR' },
-        { text: '「この人のこと、もっと知っていきたいな」', job: 'BUILDER' }
-      ]},
-      { id: 'q6', lens: true, text: '相手がスマートフォンを見ました。\nあなたはどう受け取りやすい？', choices: [
-        { text: '「何か急ぎの連絡があるのかな？」', job: 'CONNECTOR' },
-        { text: '「もしかして話を変えたほうがいいかな？」', job: 'LISTENER' },
-        { text: '「疲れているのかな？」', job: 'SUPPORTER' },
-        { text: '「ここから別の話題にしたら面白そう」', job: 'CREATOR' },
-        { text: '「また今度ゆっくり話せばいいかな」', job: 'BUILDER' }
-      ]},
-      { id: 'q7', text: '何人かで話しているとき、一人だけ会話に入れていない人がいます。\nあなたは？', choices: [
-        { text: 'その人と話が合いそうな人を、さりげなく引き合わせる', job: 'CONNECTOR' },
-        { text: 'その人に話を振って、話を聞いてみる', job: 'LISTENER' },
-        { text: 'その人の隣に移って、安心できるように声をかける', job: 'SUPPORTER' },
-        { text: 'みんなが参加できる、新しい話題を出す', job: 'CREATOR' },
-        { text: '会のあとで、その人に個別に連絡してみる', job: 'BUILDER' }
-      ]},
-      { id: 'q8', text: '交流会で「自分とは考え方が全然違う人」に出会ったら？', choices: [
-        { text: '「この人を紹介したら、喜ぶ人がいそう」', job: 'CONNECTOR' },
-        { text: '「どんな経験から、そう考えるようになったんだろう」', job: 'LISTENER' },
-        { text: '「この人が大切にしているものは何だろう」', job: 'SUPPORTER' },
-        { text: '「違う視点が混ざると、新しいものが生まれそう」', job: 'CREATOR' },
-        { text: '「時間をかけて、少しずつ分かり合えたらいい」', job: 'BUILDER' }
-      ]},
-      { id: 'q9', text: 'あなたにとって「良い人脈」とは？', choices: [
-        { text: '人と人のつながりが、どんどん広がっていく関係', job: 'CONNECTOR' },
-        { text: '本音で話し、分かり合える関係', job: 'LISTENER' },
-        { text: '困ったとき、自然に支え合える関係', job: 'SUPPORTER' },
-        { text: '一緒にワクワクするものを生み出せる関係', job: 'CREATOR' },
-        { text: '何年たっても、信頼が続いていく関係', job: 'BUILDER' }
-      ]},
-      { id: 'q10', text: '交流会が終わったあと、あなたが一番感じることは？', choices: [
-        { text: '「今日出会った人同士をつなげたい」と感じる', job: 'CONNECTOR' },
-        { text: '「あの人と、もう少し話したかった」と感じる', job: 'LISTENER' },
-        { text: '「今日出会った人の役に立ちたい」と感じる', job: 'SUPPORTER' },
-        { text: '「あの人と一緒に何か生み出せそう」と感じる', job: 'CREATOR' },
-        { text: '「この縁を、これからも大切にしたい」と感じる', job: 'BUILDER' }
-      ]}
-    ]
-  },
+  /* ---------- 後半：仕事・人脈について（5問・採点しない） ----------
+     将来のマッチングに使う情報です。診断の点数には一切加えません。
+     id（質問・選択肢・入力欄）は保存データの列名・値になる固定値です。変えないでください。
+     type      : single（1つ選ぶ）/ multi（複数選べる）
+     exclusive : true の選択肢は、他の選択肢と同時に選べません
+     fields    : 自由記述欄。showIf を付けると、その選択肢を選んだときだけ表示されます       */
+  profileQuestions: [
+    { id: 'occupation', type: 'single', text: 'あなたの職業・肩書きと、事業内容を教えてください',
+      choices: [
+        { id: 'employee', text: '会社員' },
+        { id: 'self_employed_owner', text: '個人事業主・経営者' },
+        { id: 'student', text: '学生' },
+        { id: 'freeter', text: 'フリーター' },
+        { id: 'owner_investor', text: 'オーナー業・投資家' },
+        { id: 'other', text: 'その他' }
+      ],
+      fields: [
+        { id: 'title', label: '職業・肩書き', type: 'text', max: 60, placeholder: '例：Webデザイナー／代表取締役' },
+        { id: 'business', label: '事業内容', type: 'textarea', max: 400, placeholder: '例：中小企業向けのホームページ制作' }
+      ] },
+    { id: 'seeking', type: 'multi', text: '今、どんな人・仕事を探していますか？', hint: 'あてはまるものを、すべて選んでください',
+      choices: [
+        { id: 'new_customers', text: '新規顧客' },
+        { id: 'referral_partners', text: '紹介先' },
+        { id: 'business_partners', text: '業務提携先' },
+        { id: 'outsourcing', text: '外注先' },
+        { id: 'experts', text: '専門家' },
+        { id: 'hiring', text: '採用' },
+        { id: 'network', text: '人脈' },
+        { id: 'information', text: '情報' },
+        { id: 'investment', text: '投資・資金・資産形成' },
+        { id: 'other', text: 'その他' }
+      ],
+      fields: [
+        { id: 'detail', label: '具体的にどんな人・業種・職種とつながりたいですか？', type: 'textarea', max: 400, placeholder: '例：飲食店のオーナー、SNS運用に強いデザイナー など' }
+      ] },
+    { id: 'can_introduce', type: 'multi', text: 'あなたが紹介できる人・つながりのある業種は？', hint: '「この業種なら紹介できる人がいる」と思うものを、すべて選んでください',
+      choices: [
+        { id: 'construction_manufacturing', text: '建設業・製造業' },
+        { id: 'finance_insurance', text: '金融業、保険業' },
+        { id: 'it_web_ai', text: 'IT関連、WEB関連、AI関連' },
+        { id: 'licensed_professionals', text: '士業' },
+        { id: 'real_estate_rental', text: '不動産業、物品賃貸業' },
+        { id: 'wholesale_retail', text: '卸売業、小売業' },
+        { id: 'hospitality_food', text: '宿泊業、飲食サービス業' },
+        { id: 'lifestyle_entertainment', text: '生活関連サービス業、娯楽業、ナイトサービス' },
+        { id: 'medical_welfare', text: '医療、福祉' },
+        { id: 'education', text: '教育、学習支援業' },
+        { id: 'infrastructure', text: 'インフラ（電気・ガス・熱供給・水道業・通信）' },
+        { id: 'creators_artists', text: 'クリエイター、アーティスト' },
+        { id: 'other_services', text: 'サービス業（他に分類されないもの）' },
+        { id: 'other', text: 'その他' }
+      ],
+      fields: [
+        { id: 'other_text', label: '「その他」の業種', type: 'text', max: 100, showIf: 'other', placeholder: '例：農業、スポーツ関連' }
+      ] },
+    { id: 'challenges', type: 'multi', text: '今、具体的に解決したいことはありますか？', hint: 'あてはまるものを、すべて選んでください',
+      choices: [
+        { id: 'sales_marketing', text: '集客や営業' },
+        { id: 'sns_posting', text: 'SNSの配信' },
+        { id: 'web_sns', text: 'WebやSNS' },
+        { id: 'ai_business', text: 'AIのビジネスでの使い方' },
+        { id: 'hiring_hr', text: '採用や人材' },
+        { id: 'accounting_legal', text: '経理や法務' },
+        { id: 'product_development', text: '商品・サービス開発' },
+        { id: 'fundraising', text: '資金調達' },
+        { id: 'none', text: '特になし', exclusive: true },
+        { id: 'other', text: 'その他' }
+      ],
+      fields: [
+        { id: 'detail', label: '具体的にどんなことで困っていますか？', type: 'textarea', max: 400, placeholder: '例：Instagramを始めたが、投稿が続かない' }
+      ] },
+    { id: 'urgency', type: 'single', text: 'そのつながりを求める温度感はどのくらいですか？',
+      choices: [
+        { id: 'now', text: '今すぐ探している' },
+        { id: 'within_3_months', text: '1〜3ヶ月以内' },
+        { id: 'within_6_months', text: '半年以内' },
+        { id: 'if_good_match', text: '良い人がいれば' },
+        { id: 'gathering_info', text: '情報収集' }
+      ] }
+  ],
 
-  /* ---------- SAME FACT. DIFFERENT INTERPRETATION. ---------- */
-  lens: {
-    question: 'q6',
-    fact: '相手がスマートフォンを見た。',
-    extra: '「自分の話に興味がないのかな」',
-    steps: ['事実', '解釈', '感情', '行動'],
-    body: [
-      '「スマートフォンを見た」という事実は同じ。でも、受け取り方は人によって違います。',
-      '解釈が変われば、感情も行動も変わります。',
-      '人脈を活かす第一歩は、「自分の見方だけが正解ではない」と気づくこと。'
-    ]
+  /* ---------- 回答の送信（Google Apps Script → スプレッドシート） ----------
+     endpoint : Apps Script を「ウェブアプリ」としてデプロイしたURL（gas/セットアップ手順.md）
+                空のあいだは送信せず、結果画面に「保存されていません」と表示します。      */
+  submit: {
+    endpoint: 'https://script.google.com/macros/s/AKfycbx2cW8XK-3HB1pWr0ibJKoI3oG2bizjj3bz_Z45m3PD7qpwe2Hn5euf2S8-6OMtBG-i/exec',
+    schemaVersion: 1,
+    nameMax: 30,
+    notice: '回答と診断結果は、交流会の運営とマッチングのために運営事務局へ共有されます。'
   }
 };

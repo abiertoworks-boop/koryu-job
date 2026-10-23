@@ -187,7 +187,7 @@ main{position:relative;z-index:1}
 .hud__count span{color:var(--text-3)}
 .hud__lv{justify-self:end;font-size:10.5px;letter-spacing:.2em;color:var(--text-3);padding:3px 10px;border:1px solid var(--hair);border-radius:999px}
 
-.pips{display:grid;grid-template-columns:repeat(10,1fr);gap:6px;margin:12px 0 22px}
+.pips{display:grid;grid-template-columns:repeat(var(--n,10),1fr);gap:5px;margin:12px 0 22px}
 .pip{height:4px;border-radius:2px;background:rgba(239,230,212,.14);overflow:hidden;position:relative}
 .pip::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,var(--gold-2),var(--gold));transform:scaleX(0);transform-origin:left;transition:transform .5s var(--ease)}
 .pip.is-done::after{transform:scaleX(1)}
@@ -239,6 +239,42 @@ main{position:relative;z-index:1}
 .choice__mark{isolation:isolate}
 .choice__mark::before{z-index:-1}
 .quiz__hint{margin-top:18px;text-align:center;font-size:12px;color:var(--text-3)}
+
+/* ---------- 後半（仕事・人脈）・お名前 ---------- */
+.pip--profile{background:rgba(239,230,212,.08);outline:1px dashed rgba(207,174,107,.22);outline-offset:-1px}
+.qcard__part{margin-left:10px;padding:1px 8px;border:1px solid var(--gold-hair);border-radius:999px;font-family:var(--font-body);font-size:10.5px;font-weight:500;letter-spacing:.08em;color:var(--text-2);vertical-align:1px}
+.qcard__hint{margin-top:8px;font-size:13px;line-height:1.7;color:var(--text-2)}
+.qcard__hint small{font-size:11.5px;color:var(--text-3)}
+.choice--multi .choice__mark::before{transform:none;inset:5px;border-radius:3px}
+.choice--multi.is-selected .choice__mark::after{content:"";position:absolute;left:10px;top:7px;width:6px;height:11px;border:solid #1a130a;border-width:0 2px 2px 0;transform:rotate(45deg)}
+.pfields{display:grid;gap:12px;margin-top:14px}
+.pfields[hidden]{display:none}
+.pfield{display:grid;gap:6px}
+.pfield[hidden]{display:none}
+.pfield label{font-size:13.5px;font-weight:500;color:var(--text)}
+.pfield label span{margin-left:8px;padding:0 7px;border-radius:999px;border:1px solid var(--hair);font-size:10.5px;font-weight:500;color:var(--text-3)}
+.pfield label .is-req{border-color:var(--gold);color:var(--gold)}
+.pfield input,.pfield textarea{
+  width:100%;padding:12px 14px;border-radius:10px;font:inherit;font-size:16px;line-height:1.6;color:var(--text);
+  background:var(--glass);border:1px solid rgba(239,230,212,.16);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+  transition:border-color .3s,box-shadow .3s;resize:vertical
+}
+.pfield input::placeholder,.pfield textarea::placeholder{color:var(--text-3)}
+.pfield input:focus,.pfield textarea:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(207,174,107,.18)}
+.qnext{margin-top:18px;text-align:center}
+.qnext[hidden]{display:none}
+.qnext__err{min-height:1.6em;margin-bottom:6px;font-size:13px;color:#e7a184}
+#nextBtn[aria-disabled="true"]{opacity:.55}
+.screen--submit{padding:18px 0 44px}
+.submit{display:grid;gap:14px;margin-top:22px}
+.submit__notice{font-size:12px;line-height:1.7;color:var(--text-3)}
+.submit__status{min-height:1.6em;font-size:13.5px;line-height:1.7;color:var(--text-2)}
+.submit__status[data-state="failed"]{color:#e7a184}
+.submit .link-btn{margin-top:0}
+.save-note{margin:0 0 16px;padding:12px 14px;border-radius:12px;border:1px solid var(--gold-hair);background:var(--glass);font-size:13px;line-height:1.7;color:var(--text-2);text-align:center}
+.save-note[hidden]{display:none}
+.save-note[data-state="failed"],.save-note[data-state="unconfigured"]{border-color:rgba(231,161,132,.45);color:#f0c3ae}
+.save-note .btn{margin:8px auto 0;display:flex}
 
 /* =========================================================
    ANALYZE
@@ -403,33 +439,6 @@ main{position:relative;z-index:1}
 .pcard__party{margin-top:10px;font-family:var(--font-head);font-weight:600;font-size:15px;line-height:1.7;color:var(--text)}
 .pcard__meet{margin-top:2px;font-size:13px;line-height:1.7;color:var(--text-3)}
 @media (min-width:600px){.party__grid{grid-template-columns:1fr 1fr}.pcard:first-child{grid-column:1/-1}}
-
-/* ---- SAME FACT ---- */
-.lens__fact{
-  display:flex;align-items:center;gap:14px;padding:16px 18px;border-radius:12px;
-  background:rgba(239,230,212,.06);border:1px solid var(--gold-hair);
-}
-.lens__k,.lens__fact p{font-family:var(--font-head)}
-.lens__k{flex:none;padding:2px 10px;border:1px solid var(--gold);border-radius:999px;font-size:12px;letter-spacing:.2em;color:var(--gold)}
-.lens__fact p{font-size:17px;font-weight:700;letter-spacing:.04em}
-.lens__list{position:relative;display:grid;gap:4px;margin:10px 0 0 10px;padding-left:14px;border-left:1px solid var(--gold-hair)}
-.lens__list li{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"who you" "say say";column-gap:10px;align-items:center;padding:8px 12px;border-radius:10px;border:1px solid transparent;font-size:14px;line-height:1.7;color:var(--text-2)}
-.lens__say{grid-area:say}
-.lens__you{grid-area:you}
-.lens__who{grid-area:who;font-size:10px;font-weight:700;letter-spacing:.14em;color:var(--c)}
-.lens__extra .lens__who{font-family:var(--font-body);font-size:11.5px;letter-spacing:.06em;color:var(--text-3)}
-.lens__list li.is-you{background:rgba(207,174,107,.1);border:1px solid var(--gold-hair);color:var(--text)}
-.lens__you{font-size:10.5px;padding:1px 8px;border-radius:999px;background:var(--gold);color:#1a130a;font-weight:700;white-space:nowrap}
-.lens__mine{margin:14px 0 4px;font-size:14px;line-height:1.85;color:var(--text)}
-.flow{display:grid;grid-template-columns:repeat(4,1fr);margin:22px 0 20px;counter-reset:f}
-.flow li{
-  position:relative;padding:12px 0;text-align:center;font-family:var(--font-head);font-weight:700;font-size:15px;letter-spacing:.1em;
-  border-top:1px solid var(--gold-hair);border-bottom:1px solid var(--gold-hair);
-}
-.flow li:first-child{border-left:1px solid var(--gold-hair);border-radius:8px 0 0 8px}
-.flow li:last-child{border-right:1px solid var(--gold-hair);border-radius:0 8px 8px 0}
-.flow li+li::before{content:"";position:absolute;left:-5px;top:50%;width:9px;height:9px;border-top:1px solid var(--gold);border-right:1px solid var(--gold);transform:translateY(-50%) rotate(45deg);background:transparent}
-.flow li:nth-child(2){color:var(--gold)}
 
 /* ---- CTA ---- */
 .cta{margin-top:52px;padding:38px 20px 30px;text-align:center;border-radius:16px;border:1px solid var(--gold-hair);background:

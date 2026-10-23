@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0b0907">
 <title>交流ジョブ診断 | 人脈を活かせるビジネス交流会</title>
-<meta name="description" content="10問の質問から、あなたの人脈を活かす力をゲーム感覚で発見。人脈を活かせるビジネス交流会の「交流ジョブ診断」。">
+<meta name="description" content="13問の質問から、あなたの人脈を活かす力をゲーム感覚で発見。人脈を活かせるビジネス交流会の「交流ジョブ診断」。">
 <meta property="og:title" content="あなたの「交流ジョブ」は何？ | 人脈を活かせるビジネス交流会">
-<meta property="og:description" content="10問の質問から、あなたの人脈を活かす力をゲーム感覚で発見。">
+<meta property="og:description" content="13問の質問から、あなたの人脈を活かす力をゲーム感覚で発見。">
 <meta property="og:image" content="images/tome.jpg">
 <meta property="og:type" content="website">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -19,7 +19,8 @@
 <!--
   交流ジョブ診断（RPG型）
   ・内容（質問・ジョブ・二つ名・コピー・ミッション）は data.js
-  ・画面とロジックは app.js（タイトル → 質問10問 → 解析 → 結果）
+  ・画面とロジックは app.js（タイトル → 性別 → 交流スタイル8問 → 仕事・人脈5問 → お名前・送信 → 解析 → 結果）
+  ・回答の保存は gas/（Google Apps Script → スプレッドシート）。送信先URLは data.js の submit.endpoint
   ・背景：タイトル＝古い本 / 質問＝酒場（ギルド）/ 結果＝古い本、ステータス表＝羊皮紙
 -->
 <div class="bg" aria-hidden="true">
@@ -40,7 +41,7 @@
     <p class="crest en"><span>NETWORKING</span><span>JOB&nbsp;QUEST</span></p>
     <p class="title__event">人脈を活かせるビジネス交流会</p>
     <h1 class="title__h" id="titleHeading" tabindex="-1">あなたの<br>「交流ジョブ」は何？</h1>
-    <p class="title__sub">10問の質問から、あなたの人脈を活かす力を<br class="sp">ゲーム感覚で発見。</p>
+    <p class="title__sub"><span data-slot="total">13</span>問の質問から、あなたの人脈を活かす力を<br class="sp">ゲーム感覚で発見。</p>
     <p class="title__tease">魔法使い？賢者？<br class="sp">それともギルドマスター？</p>
 
     <div class="title__intro">
@@ -53,7 +54,7 @@
       <span class="btn__en en">START QUEST</span>
       <span class="btn__ja">冒険をはじめる</span>
     </button>
-    <p class="title__meta en">10 QUESTIONS &nbsp;·&nbsp; ABOUT 2–3 MIN</p>
+    <p class="title__meta en">13 QUESTIONS &nbsp;·&nbsp; ABOUT 3–4 MIN</p>
     <button class="link-btn" id="resumeBtn" type="button" hidden>前回の結果を見る</button>
     <p class="note" data-slot="disclaimer"></p>
   </section>
@@ -62,7 +63,7 @@
   <section class="screen screen--gender" id="screen-gender" aria-labelledby="genderHeading">
     <p class="crest en"><span>CHOOSE</span><span>YOUR&nbsp;HERO</span></p>
     <h2 class="gender__h" id="genderHeading" tabindex="-1">あなたの性別を選んでください</h2>
-    <p class="gender__sub">選んだ性別に合わせて、質問の内容と<br class="sp">結果のキャラクターが変わります。</p>
+    <p class="gender__sub">選んだ性別に合わせて、<br class="sp">結果のキャラクターが変わります。</p>
     <ul class="gender__pick" id="genderPick"></ul>
     <button class="link-btn" id="genderBack" type="button">タイトルに戻る</button>
   </section>
@@ -77,16 +78,46 @@
       <p class="hud__count en" id="hudCount" aria-live="polite"></p>
       <span class="hud__lv en" data-slot="lv"></span>
     </div>
-    <div class="pips" id="pips" role="progressbar" aria-valuemin="0" aria-valuemax="10" aria-valuenow="0" aria-label="進捗"></div>
+    <div class="pips" id="pips" role="progressbar" aria-valuemin="0" aria-valuemax="13" aria-valuenow="0" aria-label="進捗"></div>
 
     <div class="qbox" id="qbox">
       <div class="qcard">
         <p class="qcard__label en" id="qLabel"></p>
         <h2 class="qcard__text" id="qText" tabindex="-1"></h2>
+        <p class="qcard__hint" id="qHint" hidden></p>
       </div>
       <ol class="choices" id="choices"></ol>
+      <div class="pfields" id="pfields" hidden></div>
+      <div class="qnext" id="qNext" hidden>
+        <p class="qnext__err" id="qErr" role="alert"></p>
+        <button class="btn btn--primary btn--wide" id="nextBtn" type="button">次へ</button>
+      </div>
     </div>
     <p class="quiz__hint">直感で選んでください。正解はありません。</p>
+  </section>
+
+  <!-- ============ お名前・送信（13問の外） ============ -->
+  <section class="screen screen--submit" id="screen-submit" aria-labelledby="submitHeading">
+    <div class="hud">
+      <button class="hud__back" id="submitBack" type="button" aria-label="最後の質問に戻る">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5 8 12l7 7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>戻る</span>
+      </button>
+      <p class="hud__count en">ALL CLEAR</p>
+      <span class="hud__lv en" data-slot="lv"></span>
+    </div>
+    <form class="qcard submit" id="submitForm" novalidate>
+      <p class="qcard__label en">LAST STEP</p>
+      <h2 class="qcard__text" id="submitHeading" tabindex="-1">最後に、お名前を入力してください</h2>
+      <div class="pfield">
+        <label for="nameInput">お名前<span class="is-req">必須</span></label>
+        <input id="nameInput" type="text" autocomplete="name" placeholder="例：山田 花子" required>
+      </div>
+      <p class="submit__notice" id="submitNotice"></p>
+      <p class="submit__status" id="submitStatus" role="status" aria-live="polite"></p>
+      <button class="btn btn--primary btn--wide" id="submitBtn" type="submit"><span class="btn__ja">送信して結果を見る</span></button>
+      <button class="link-btn" id="skipSendBtn" type="button" hidden>送信せずに結果を見る</button>
+    </form>
   </section>
 
   <!-- ============ ANALYZE ============ -->
