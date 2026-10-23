@@ -463,7 +463,7 @@ window.JOB_QUIZ = {
      endpoint : Apps Script を「ウェブアプリ」としてデプロイしたURL（gas/セットアップ手順.md）
                 空のあいだは送信せず、結果画面に「保存されていません」と表示します。      */
   submit: {
-    endpoint: 'https://script.google.com/macros/s/AKfycbx2cW8XK-3HB1pWr0ibJKoI3oG2bizjj3bz_Z45m3PD7qpwe2Hn5euf2S8-6OMtBG-i/exec',
+    endpoint: 'https://script.google.com/macros/s/AKfycbx9JdrXj95EUEx2Cb-7QYLc_NSYi-M1aR7GTWVnjINWq-1qiHYdvlkXxluVRYJYmj4uoQ/exec',
     schemaVersion: 1,
     nameMax: 30,
     notice: '回答と診断結果は、交流会の運営とマッチングのために運営事務局へ共有されます。'
