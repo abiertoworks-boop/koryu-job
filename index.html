@@ -108,10 +108,14 @@
     </div>
     <form class="qcard submit" id="submitForm" novalidate>
       <p class="qcard__label en">LAST STEP</p>
-      <h2 class="qcard__text" id="submitHeading" tabindex="-1">最後に、お名前を入力してください</h2>
+      <h2 class="qcard__text" id="submitHeading" tabindex="-1">最後に、お名前とメールアドレスを<br class="sp">入力してください</h2>
       <div class="pfield">
         <label for="nameInput">お名前<span class="is-req">必須</span></label>
         <input id="nameInput" type="text" autocomplete="name" placeholder="例：山田 花子" required>
+      </div>
+      <div class="pfield">
+        <label for="emailInput">メールアドレス<span class="is-req">必須</span></label>
+        <input id="emailInput" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" placeholder="例：hanako@example.com" required>
       </div>
       <p class="submit__notice" id="submitNotice"></p>
       <p class="submit__status" id="submitStatus" role="status" aria-live="polite"></p>

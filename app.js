@@ -43,7 +43,7 @@
     gender: null, i: 0, locked: false,
     style: Array(SQ.length).fill(null),   // 前半：選んだ選択肢の番号（data.js の並び）
     profile: emptyProfile(),               // 後半：{ choices: [選択肢ID], fields: { 入力欄ID: 文字 } }
-    order: [], name: '',
+    order: [], name: '', email: '',
     responseId: null, record: null, save: 'idle', sending: false, result: null
   };
 
@@ -61,6 +61,8 @@
        1) 点数が高い順
        2) 同点なら、そのタイプを最初に選んだ質問が早い順（一度も選ばれていなければ後ろ）
        3) それでも同点なら data.js の jobs の並び順                                     */
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
   const TIE_BREAK_RULE = 'score_desc > earliest_answered_question > jobs_order';
 
   function compute(types, gender) {
@@ -104,6 +106,7 @@
       responseId: state.responseId,
       submittedAt: new Date().toISOString(),
       name: state.name,
+      email: state.email,
       gender: state.gender,
       style: {
         answers: SQ.map((q, k) => {
@@ -165,6 +168,7 @@
         <span class="gcard__ja">${esc(g.label)}</span>
       </button></li>`).join('');
     $('#nameInput').maxLength = D.submit.nameMax;
+    $('#emailInput').maxLength = D.submit.emailMax;
     $('#submitNotice').textContent = D.submit.notice;
     const last = store.get();
     $('#resumeBtn').hidden = !(last && last.record && GENDER[last.record.gender]);
@@ -315,6 +319,7 @@
   /* ---------- お名前と送信 ---------- */
   function openSubmit() {
     $('#nameInput').value = state.name;
+    $('#emailInput').value = state.email;
     setSubmitStatus(state.save === 'failed' ? 'failed' : 'idle');
     show('submit', '#submitHeading');
   }
@@ -337,6 +342,12 @@
     const name = $('#nameInput').value.trim();
     state.name = name;
     if (!name) { setSubmitStatus('idle', 'お名前を入力してください。'); $('#nameInput').focus(); return; }
+    // 全角の＠や英数字は半角にそろえる
+    const email = $('#emailInput').value.normalize('NFKC').replace(/\s+/g, '');
+    $('#emailInput').value = email;
+    state.email = email;
+    if (!email) { setSubmitStatus('idle', 'メールアドレスを入力してください。'); $('#emailInput').focus(); return; }
+    if (!EMAIL_RE.test(email)) { setSubmitStatus('idle', 'メールアドレスの形式をご確認ください（例：hanako@example.com）。'); $('#emailInput').focus(); return; }
 
     const r = compute(styleTypes(), state.gender);
     if (!state.responseId) state.responseId = uuid();   // 再送しても同じIDで1件として扱う
@@ -730,7 +741,7 @@
       const rec = last.record;
       setGender(rec.gender);
       const byId = Object.fromEntries((rec.style.answers || []).map(a => [a.questionId, a.choiceId]));
-      state.record = rec; state.responseId = rec.responseId; state.name = rec.name; state.save = last.save || 'idle';
+      state.record = rec; state.responseId = rec.responseId; state.name = rec.name; state.email = rec.email || ''; state.save = last.save || 'idle';
       state.result = compute(SQ.map(q => byId[q.id] || null), rec.gender);
       renderResult(state.result);
       show('result', '#resultHeading');
@@ -746,14 +757,14 @@
     });
     $('#nextBtn').addEventListener('click', next);
     $('#backBtn').addEventListener('click', back);
-    $('#submitBack').addEventListener('click', () => { if (state.sending) return; state.name = $('#nameInput').value; state.i = TOTAL - 1; renderQuestion('back'); show('quiz', '#qText'); });
+    $('#submitBack').addEventListener('click', () => { if (state.sending) return; state.name = $('#nameInput').value; state.email = $('#emailInput').value; state.i = TOTAL - 1; renderQuestion('back'); show('quiz', '#qText'); });
     $('#submitForm').addEventListener('submit', e => { e.preventDefault(); submit(); });
     $('#skipSendBtn').addEventListener('click', () => { if (!state.sending && state.record) analyze(compute(styleTypes(), state.gender)); });
     $('#result').addEventListener('click', e => {
       const act = e.target.closest('[data-act]')?.dataset.act;
       if (act === 'share') openShare();
       if (act === 'resend') resend();
-      if (act === 'retry') { $('#result').classList.remove('is-in'); state.name = ''; show('gender', '#genderHeading'); }
+      if (act === 'retry') { $('#result').classList.remove('is-in'); state.name = ''; state.email = ''; show('gender', '#genderHeading'); }
     });
     $('#shareClose').addEventListener('click', closeShare);
     $('#shareNative').addEventListener('click', nativeShare);
