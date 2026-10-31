@@ -446,6 +446,17 @@ main{position:relative;z-index:1}
 .cta__concept{font-family:var(--font-head);font-weight:700;font-size:clamp(21px,6vw,28px);letter-spacing:.08em;line-height:1.5}
 .cta__lead{margin:8px 0 22px;font-size:14px;color:var(--text-2)}
 .cta__sub{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:14px}
+.apply:focus{outline:none}
+.apply:not([data-state="idle"]){padding:20px 16px;border:1px solid var(--gold-hair);border-radius:12px;background:var(--glass)}
+.apply__h{font-family:var(--font-head);font-weight:700;font-size:18px;letter-spacing:.06em;line-height:1.6;color:var(--gold)}
+.apply__p{margin-top:10px;font-size:14px;line-height:1.8;color:var(--text-2);text-align:left;overflow-wrap:anywhere}
+.apply__event{margin-top:14px;text-align:left;font-size:13.5px;line-height:1.7}
+.apply__event>div{display:grid;grid-template-columns:4.5em 1fr;gap:8px;padding:8px 0;border-top:1px solid var(--hair)}
+.apply__event dt{color:var(--text-3)}
+.apply__event dd{color:var(--text-2);overflow-wrap:anywhere}
+.apply__notes{margin-top:14px;padding-left:1.2em;list-style:disc;text-align:left;font-size:12px;line-height:1.7;color:var(--text-3)}
+.apply__status{min-height:1em;margin:12px 0;font-size:13.5px;line-height:1.7;text-align:left;color:#e7a184}
+.apply .link-btn{margin-top:12px}
 
 /* ---------- 結果カードのダイアログ ---------- */
 .share{

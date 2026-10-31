@@ -44,7 +44,8 @@
     style: Array(SQ.length).fill(null),   // 前半：選んだ選択肢の番号（data.js の並び）
     profile: emptyProfile(),               // 後半：{ choices: [選択肢ID], fields: { 入力欄ID: 文字 } }
     order: [], name: '', email: '',
-    responseId: null, record: null, save: 'idle', sending: false, result: null
+    responseId: null, record: null, save: 'idle', sending: false, result: null,
+    apply: 'idle', full: false   // apply：idle / confirm / sending / failed / applied / waitlist
   };
 
   function setGender(id) { state.gender = id; }
@@ -126,6 +127,11 @@
 
   /* ---------- 送信（Google Apps Script のウェブアプリ） ---------- */
   async function sendRecord(record) {
+    const body = await postRecord(record);
+    return !!(body && body.ok);
+  }
+
+  async function postRecord(record) {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 45000);
     try {
@@ -136,9 +142,79 @@
         signal: ctrl.signal
       });
       const body = await res.json().catch(() => null);
-      return !!(res.ok && body && body.ok);
-    } catch { return false; }
+      return res.ok ? body : null;
+    } catch { return null; }
     finally { clearTimeout(timer); }
+  }
+
+  // 満席かどうかを聞くだけ。聞けなくても申込はでき、席の判定は申込のときにスクリプト側で行う
+  async function checkFull() {
+    if (!D.submit.endpoint) return;
+    try {
+      const res = await fetch(`${D.submit.endpoint}?action=status`);
+      const body = await res.json();
+      if (!body || !body.ok || state.full === !!body.full) return;
+      state.full = !!body.full;
+      renderApply();
+    } catch { /* 表示はそのまま */ }
+  }
+
+  /* ---------- 交流会への申込 ----------
+     回答と一緒に送るので、回答の保存に失敗していた人も、ここで保存と申込がまとめて済みます。
+     スクリプトが受付結果（status）を返したときだけ、完了と表示します。 */
+  async function apply() {
+    if (state.sending || !state.record) return;
+    state.sending = true;
+    state.apply = 'sending';
+    renderApply();
+    const body = await postRecord({ ...state.record, apply: true });
+    state.sending = false;
+    const ok = body && body.ok && (body.status === 'applied' || body.status === 'waitlist');
+    state.apply = ok ? body.status : 'failed';
+    if (ok) { state.save = 'saved'; renderSaveNote('saved'); persist(); }
+    renderApply();
+    const box = $('#applyBox');
+    if (box) box.focus({ preventScroll: true });
+  }
+
+  const eventRows = () => `<dl class="apply__event">${D.cta.event.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${lines(v)}</dd></div>`).join('')}</dl>`;
+
+  function renderApply() {
+    const el = $('#applyBox'); if (!el) return;
+    const s = state.apply;
+    const label = state.full ? D.cta.waitLabel : D.cta.label;
+    const confirmView = sending => `
+      <p class="apply__h">${state.full ? 'キャンセル待ちの申込内容の確認' : '申込内容の確認'}</p>
+      ${state.full ? '<p class="apply__p">定員に達しているため、キャンセル待ちでのお申込みになります。</p>' : ''}
+      <dl class="apply__event">
+        <div><dt>お名前</dt><dd>${esc(state.record.name)}</dd></div>
+        <div><dt>メール</dt><dd>${esc(state.record.email)}</dd></div>
+      </dl>
+      ${eventRows()}
+      <ul class="apply__notes">${D.cta.notes.map(n => `<li>${esc(n)}</li>`).join('')}</ul>
+      <p class="apply__status" data-state="${s}">${s === 'failed' ? '申込を受け付けられませんでした。通信環境をご確認のうえ、もう一度お試しください。' : ''}</p>
+      <button class="btn btn--primary btn--wide" type="button" data-act="apply-send"${sending ? ' disabled' : ''}><span class="btn__ja">${sending ? '送信中……' : s === 'failed' ? 'もう一度送信する' : '申込を確定する'}</span></button>
+      <button class="link-btn" type="button" data-act="apply-cancel"${sending ? ' disabled' : ''}>戻る</button>`;
+
+    el.dataset.state = s;
+    if (s === 'applied') {
+      el.innerHTML = `
+        <p class="apply__h">お申込みを受け付けました</p>
+        <p class="apply__p">${esc(state.record.name)} 様、ありがとうございます。詳しいご案内は、運営事務局から ${esc(state.record.email)} 宛にメールでお送りします。</p>
+        ${eventRows()}`;
+    } else if (s === 'waitlist') {
+      el.innerHTML = `
+        <p class="apply__h">キャンセル待ちで受け付けました</p>
+        <p class="apply__p">${esc(state.record.name)} 様、ありがとうございます。定員に達しているため、キャンセル待ちとなります。お席をご用意できる場合は、運営事務局から ${esc(state.record.email)} 宛にメールでご連絡します。</p>
+        ${eventRows()}`;
+    } else if (s === 'confirm' || s === 'sending' || s === 'failed') {
+      el.innerHTML = confirmView(s === 'sending');
+    } else {
+      // 送信先がない、または保存データがないときは申込を受けられない（受け付けたように見せない）
+      el.innerHTML = D.submit.endpoint && state.record
+        ? `<button class="btn btn--primary btn--wide" type="button" data-act="apply-open"><span class="btn__ja">${esc(label)}</span></button>`
+        : '<p class="apply__p">現在、この画面からはお申込みいただけません。</p>';
+    }
   }
 
   /* ---------- screens ---------- */
@@ -179,7 +255,7 @@
     state.style = Array(SQ.length).fill(null);
     state.profile = emptyProfile();
     state.order = SQ.map(q => shuffled(q.choices.length));
-    state.responseId = null; state.record = null; state.save = 'idle';
+    state.responseId = null; state.record = null; state.save = 'idle'; state.apply = 'idle';
     $('#pips').innerHTML = '';
     renderQuestion('fwd');
     show('quiz', '#qText');
@@ -376,7 +452,7 @@
     persist();
   }
 
-  function persist() { store.set({ record: state.record, save: state.save }); }
+  function persist() { store.set({ record: state.record, save: state.save, apply: state.apply === 'applied' || state.apply === 'waitlist' ? state.apply : 'idle' }); }
 
   /* ---------- analyze（1〜2秒） ---------- */
   async function analyze(r) {
@@ -539,9 +615,7 @@
       <section class="cta">
         <p class="cta__concept">${esc(D.meta.concept)}</p>
         <p class="cta__lead">${esc(D.cta.lead)}</p>
-        <a class="btn btn--primary btn--wide" href="${esc(D.cta.href)}"${/^https?:/.test(D.cta.href) ? ' target="_blank" rel="noopener"' : ''}>
-          <span class="btn__ja">${esc(D.cta.label)}</span>
-        </a>
+        <div class="apply" id="applyBox" tabindex="-1" role="status" aria-live="polite"></div>
         <div class="cta__sub">
           <button class="btn btn--ghost btn--sm" type="button" data-act="share">結果カードを保存</button>
           <button class="btn btn--text btn--sm" type="button" data-act="retry">もう一度診断する</button>
@@ -550,6 +624,8 @@
       </section>`;
 
     renderSaveNote(state.save);
+    renderApply();
+    if (state.apply === 'idle') checkFull();
     if (!reduce) requestAnimationFrame(() => $('#result').classList.add('is-in'));
     else $('#result').classList.add('is-in');
   }
@@ -741,7 +817,7 @@
       const rec = last.record;
       setGender(rec.gender);
       const byId = Object.fromEntries((rec.style.answers || []).map(a => [a.questionId, a.choiceId]));
-      state.record = rec; state.responseId = rec.responseId; state.name = rec.name; state.email = rec.email || ''; state.save = last.save || 'idle';
+      state.record = rec; state.responseId = rec.responseId; state.name = rec.name; state.email = rec.email || ''; state.save = last.save || 'idle'; state.apply = last.apply || 'idle';
       state.result = compute(SQ.map(q => byId[q.id] || null), rec.gender);
       renderResult(state.result);
       show('result', '#resultHeading');
@@ -764,6 +840,9 @@
       const act = e.target.closest('[data-act]')?.dataset.act;
       if (act === 'share') openShare();
       if (act === 'resend') resend();
+      if (act === 'apply-open') { state.apply = 'confirm'; renderApply(); checkFull(); $('#applyBox').focus({ preventScroll: true }); }
+      if (act === 'apply-cancel' && !state.sending) { state.apply = 'idle'; renderApply(); }
+      if (act === 'apply-send') apply();
       if (act === 'retry') { $('#result').classList.remove('is-in'); state.name = ''; state.email = ''; show('gender', '#genderHeading'); }
     });
     $('#shareClose').addEventListener('click', closeShare);
