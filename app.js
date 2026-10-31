@@ -330,6 +330,7 @@
     box.classList.remove('enter-fwd', 'enter-back');
     void box.offsetWidth;
     box.classList.add(dir === 'back' ? 'enter-back' : 'enter-fwd');
+    window.scrollTo(0, 0);   // 長い質問のあとでも、次の質問文から見えるように
   }
 
   // 後半：選択状態・「その他」入力欄の表示・次へボタンを揃える

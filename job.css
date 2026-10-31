@@ -111,6 +111,7 @@ main{position:relative;z-index:1}
 .btn__en{font-size:12px;font-weight:600;letter-spacing:.34em}
 .btn__ja{font-size:16px;font-weight:700;letter-spacing:.12em}
 .link-btn{display:block;margin:18px auto 0;font-size:13.5px;color:var(--text-2);text-decoration:underline;text-underline-offset:4px;text-decoration-color:var(--gold-hair)}
+.link-btn[hidden]{display:none}
 
 .note{margin-top:28px;font-size:11.5px;line-height:1.8;color:var(--text-3);text-align:left}
 
@@ -271,6 +272,7 @@ main{position:relative;z-index:1}
 .submit__status{min-height:1.6em;font-size:13.5px;line-height:1.7;color:var(--text-2)}
 .submit__status[data-state="failed"]{color:#e7a184}
 .submit .link-btn{margin-top:0}
+.submit .btn{justify-self:center}
 .save-note{margin:0 0 16px;padding:12px 14px;border-radius:12px;border:1px solid var(--gold-hair);background:var(--glass);font-size:13px;line-height:1.7;color:var(--text-2);text-align:center}
 .save-note[hidden]{display:none}
 .save-note[data-state="failed"],.save-note[data-state="unconfigured"]{border-color:rgba(231,161,132,.45);color:#f0c3ae}
