@@ -392,7 +392,8 @@ window.JOB_QUIZ = {
      id（質問・選択肢・入力欄）は保存データの列名・値になる固定値です。変えないでください。
      type      : single（1つ選ぶ）/ multi（複数選べる）
      exclusive : true の選択肢は、他の選択肢と同時に選べません
-     fields    : 自由記述欄。showIf を付けると、その選択肢を選んだときだけ表示されます       */
+     fields    : 自由記述欄。showIf を付けると、その選択肢を選んだときだけ表示されます
+     sub       : 同じ画面に出す2つ目の選択（複数・必須）。choicesFrom の質問の選択肢を使います  */
   profileQuestions: [
     { id: 'occupation', type: 'single', text: 'あなたの職業・肩書きと、事業内容を教えてください',
       choices: [
@@ -420,6 +421,8 @@ window.JOB_QUIZ = {
         { id: 'investment', text: '投資・資金・資産形成' },
         { id: 'other', text: 'その他' }
       ],
+      // 同じ画面の2つ目の選択（複数・必須）。選択肢は Q11 の業種と同じなので、そのまま突き合わせられます
+      sub: { id: 'industries', text: 'つながりたい業種・職種は？', hint: 'あてはまるものを、すべて選んでください', choicesFrom: 'can_introduce' },
       fields: [
         { id: 'detail', label: '具体的にどんな人・業種・職種とつながりたいですか？', type: 'textarea', max: 400, placeholder: '例：飲食店のオーナー、SNS運用に強いデザイナー など' }
       ] },
@@ -474,7 +477,7 @@ window.JOB_QUIZ = {
                 空のあいだは送信せず、結果画面に「保存されていません」と表示します。      */
   submit: {
     endpoint: 'https://script.google.com/macros/s/AKfycbx9JdrXj95EUEx2Cb-7QYLc_NSYi-M1aR7GTWVnjINWq-1qiHYdvlkXxluVRYJYmj4uoQ/exec',
-    schemaVersion: 2,   // 2：メールアドレス（必須）を追加
+    schemaVersion: 3,   // 2：メールアドレス（必須）を追加 / 3：Q10 につながりたい業種・職種を追加
     nameMax: 30,
     emailMax: 254,
     notice: '回答・診断結果・メールアドレスは、交流会の運営・マッチング・ご連絡のために運営事務局へ共有されます。'

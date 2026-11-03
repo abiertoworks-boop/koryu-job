@@ -38,7 +38,9 @@
   };
 
   /* ---------- state ---------- */
-  const emptyProfile = () => Object.fromEntries(PQ.map(q => [q.id, { choices: [], fields: {} }]));
+  const emptyProfile = () => Object.fromEntries(PQ.map(q => [q.id, { choices: [], sub: [], fields: {} }]));
+  // 同じ画面の2つ目の選択（Q10 のつながりたい業種・職種）の選択肢
+  const subChoices = q => (q.sub ? PQ.find(x => x.id === q.sub.choicesFrom).choices : []);
   const state = {
     gender: null, i: 0, locked: false,
     style: Array(SQ.length).fill(null),   // 前半：選んだ選択肢の番号（data.js の並び）
@@ -96,6 +98,10 @@
       const entry = q.type === 'multi'
         ? { choiceIds: pick.map(c => c.id), labels: pick.map(c => c.text) }
         : { choiceId: pick[0] ? pick[0].id : null, label: pick[0] ? pick[0].text : null };
+      if (q.sub) {
+        const sub = a.sub.map(id => subChoices(q).find(c => c.id === id)).filter(Boolean);
+        entry[q.sub.id] = { choiceIds: sub.map(c => c.id), labels: sub.map(c => c.text) };
+      }
       (q.fields || []).forEach(f => {
         const visible = !f.showIf || a.choices.includes(f.showIf);
         entry[f.id] = visible ? (a.fields[f.id] || '').trim().slice(0, f.max || 400) : '';
@@ -265,7 +271,8 @@
   const isAnswered = k => {
     const s = STEPS[k];
     if (s.part === 'style') return state.style[k] != null;
-    return state.profile[s.q.id].choices.length > 0;
+    const a = state.profile[s.q.id];
+    return a.choices.length > 0 && (!s.q.sub || a.sub.length > 0);
   };
 
   function renderPips() {
@@ -302,6 +309,16 @@
           <span class="choice__text">${esc(c.text)}</span>
         </button></li>`;
       }).join('');
+      $('#subq').hidden = !q.sub;
+      $('#subqText').textContent = q.sub ? q.sub.text : '';
+      $('#subqHint').textContent = q.sub ? q.sub.hint || '' : '';
+      $('#subChoices').innerHTML = subChoices(q).map(c => {
+        const on = a.sub.includes(c.id);
+        return `<li><button class="choice choice--multi${on ? ' is-selected' : ''}" type="button" data-sid="${esc(c.id)}" aria-pressed="${on}">
+          <span class="choice__mark en"></span>
+          <span class="choice__text">${esc(c.text)}</span>
+        </button></li>`;
+      }).join('');
       $('#pfields').innerHTML = (q.fields || []).map(f => {
         const v = esc(a.fields[f.id] || '');
         const input = f.type === 'textarea'
@@ -319,6 +336,8 @@
         </button></li>`;
       }).join('');
       $('#pfields').innerHTML = '';
+      $('#subq').hidden = true;
+      $('#subChoices').innerHTML = '';
     }
     $('#pfields').hidden = !profile;
     $('#qNext').hidden = !profile;
@@ -341,11 +360,23 @@
       b.classList.toggle('is-selected', on);
       b.setAttribute('aria-pressed', String(on));
     });
+    $$('#subChoices .choice').forEach(b => {
+      const on = a.sub.includes(b.dataset.sid);
+      b.classList.toggle('is-selected', on);
+      b.setAttribute('aria-pressed', String(on));
+    });
     $$('#pfields .pfield').forEach(el => { el.hidden = !!el.dataset.showIf && !a.choices.includes(el.dataset.showIf); });
     $('#nextBtn').textContent = state.i === TOTAL - 1 ? '次へ（最後にお名前）' : '次へ';
-    $('#nextBtn').setAttribute('aria-disabled', String(!a.choices.length));
-    if (a.choices.length) $('#qErr').textContent = '';
+    $('#nextBtn').setAttribute('aria-disabled', String(!isAnswered(state.i)));
+    if (isAnswered(state.i)) $('#qErr').textContent = '';
     renderPips();
+  }
+
+  function toggleSub(sid) {
+    const q = STEPS[state.i].q, a = state.profile[q.id];
+    if (!subChoices(q).some(c => c.id === sid)) return;
+    a.sub = a.sub.includes(sid) ? a.sub.filter(x => x !== sid) : [...a.sub, sid];
+    syncProfileUI();
   }
 
   function toggleProfile(cid) {
@@ -362,6 +393,10 @@
     const q = STEPS[state.i].q;
     if (!state.profile[q.id].choices.length) {
       $('#qErr').textContent = q.type === 'multi' ? '1つ以上選んでください。' : '1つ選んでください。';
+      return;
+    }
+    if (q.sub && !state.profile[q.id].sub.length) {
+      $('#qErr').textContent = `「${q.sub.text.replace(/は?[？?]$/, '')}」を1つ以上選んでください。`;
       return;
     }
     if (state.i < TOTAL - 1) { state.i++; renderQuestion('fwd'); $('#qText').focus({ preventScroll: true }); }
@@ -827,6 +862,9 @@
       const b = e.target.closest('.choice'); if (!b) return;
       if (b.dataset.cid != null) toggleProfile(b.dataset.cid);
       else choose(Number(b.dataset.ci));
+    });
+    $('#subChoices').addEventListener('click', e => {
+      const b = e.target.closest('.choice'); if (b) toggleSub(b.dataset.sid);
     });
     $('#pfields').addEventListener('input', e => {
       const f = e.target.closest('[data-fid]'); if (!f) return;

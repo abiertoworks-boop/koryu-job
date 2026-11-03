@@ -248,6 +248,10 @@ main{position:relative;z-index:1}
 .qcard__hint small{font-size:11.5px;color:var(--text-3)}
 .choice--multi .choice__mark::before{transform:none;inset:5px;border-radius:3px}
 .choice--multi.is-selected .choice__mark::after{content:"";position:absolute;left:10px;top:7px;width:6px;height:11px;border:solid #1a130a;border-width:0 2px 2px 0;transform:rotate(45deg)}
+.subq{margin-top:26px;padding-top:20px;border-top:1px solid var(--gold-hair)}
+.subq[hidden]{display:none}
+.subq__text{font-family:var(--font-head);font-weight:600;font-size:clamp(17px,4.6vw,20px);line-height:1.6;letter-spacing:.03em}
+.subq .choices{margin-top:12px}
 .pfields{display:grid;gap:12px;margin-top:14px}
 .pfields[hidden]{display:none}
 .pfield{display:grid;gap:6px}
